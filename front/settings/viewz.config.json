@@ -1,0 +1,19 @@
+{
+  "routing": "HASH",
+  "viewsPath": "views",
+  "routes": [
+    {
+      "url": "/",
+      "path": "settings"
+    },
+    {
+      "url": "/popup-user{/:login}",
+      "path": "popup-user"
+    }
+  ],
+  "extensions": [
+    { "url": "https://cdn.jsdelivr.net/gh/Bakino/open-bamz-database@68c8323a62db4aa1253000e8033aa90dc8d1ce5e/front/lib/viewz-dbadmin.mjs" },
+    { "url": "https://cdn.jsdelivr.net/gh/Bakino/open-bamz-bootstrap@latest/front/lib/viewz-bootstrap5.mjs" },
+    { "url": "/plugin/open-bamz-users/lib/viewz-users.mjs" }
+  ]
+} 

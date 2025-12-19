@@ -1,0 +1,89 @@
+<div></div>
+<form>
+  <div class="container">
+    <div class="row">
+      <div class="col-12">
+        <div class="mb-3">
+          <label for="formInput1" class="form-label">Login</label>
+          <input
+            type="text"
+            id="formInput1"
+            z-bind="login"
+            required=""
+            class="form-control"
+          />
+        </div>
+      </div>
+      <div class="col-12">
+        <div class="mb-3">
+          <label for="formInput1" class="form-label">E-mail</label>
+          <input
+            type="email"
+            z-bind="email"
+            id="i3w7m"
+            required=""
+            class="form-control"
+          />
+        </div>
+      </div>
+      <div class="col-12">
+        <div id="ide4p" class="mb-3">
+          <label for="formInput1-2" class="form-label">Role</label>
+          <select
+            type="text"
+            id="formInput1-2"
+            z-bind="role"
+            required=""
+            class="form-control form-select"
+          >
+            <option value=""></option>
+            <option z-bind="r of roles">${r.role}</option>
+          </select>
+        </div>
+      </div>
+      <div class="col-12">
+        <div class="form-check">
+          <input
+            type="checkbox"
+            value=""
+            id="myCheckbox"
+            z-bind="input_password"
+            class="form-check-input"
+          />
+          <label for="myCheckbox" class="form-check-label">
+            Input password
+          </label>
+        </div>
+      </div>
+      <div id="iuj6x" z-show-if="input_password" class="col-12">
+        <div class="mb-3">
+          <label for="formInput1" class="form-label">Password</label>
+          <input
+            type="password"
+            z-bind="password"
+            id="iv2fs"
+            required=""
+            class="form-control"
+          />
+        </div>
+      </div>
+      <div class="col-12">
+        <div class="form-check">
+          <input
+            type="checkbox"
+            value=""
+            id="myCheckbox-2"
+            z-bind="active"
+            class="form-check-input"
+          />
+          <label for="myCheckbox-2" class="form-check-label">Active</label>
+        </div>
+      </div>
+      <div class="col-12">
+        <button type="button" z-on-click="view.validate()" class="btn btn-primary w-100">
+          <span>Validate</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</form>

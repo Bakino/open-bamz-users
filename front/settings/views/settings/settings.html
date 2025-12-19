@@ -1,0 +1,2165 @@
+<div class="container-fluid h-100">
+  <div class="row h-100">
+    <div
+      id="ik8a"
+      class="col-4 h-100 overflow-auto bg-secondary-subtle col-xl-3 col-lg-3 d-md-none d-sm-none d-none d-lg-block col-xxl-3 ps-xxl-5 ps-5 pt-5 pb-5"
+    >
+      <nav
+        id="navbar-users"
+        class="h-100 flex-column align-items-stretch pe-4 border-end"
+      >
+        <span id="i0vidu" class="fw-bold">Users plugin</span>
+        <nav id="ii1vs" class="nav flex-column mt-2">
+          <a href="#backOffice" id="iv2hh" class="nav-link">Backoffice</a>
+          <nav id="iny9o2" class="nav flex-column">
+            <a
+              href="#backOffice-settings"
+              id="igugwj"
+              class="nav-link ms-2 my-1"
+            >
+              Settings
+            </a>
+            <a href="#backOffice-roles" id="imglsl" class="nav-link ms-2 my-1">
+              Roles
+            </a>
+            <a href="#backOffice-users" id="imglfsl" class="nav-link ms-2 my-1">
+              Manage users
+            </a>
+            <a
+              href="#backOffice-access"
+              id="imgslsl"
+              class="nav-link ms-2 my-1"
+            >
+              Table access
+            </a>
+            <a
+              href="#backOffice-advanced-security"
+              id="imgslsl-2"
+              class="nav-link ms-2 my-1"
+            >
+              Advanced security check
+            </a>
+            <a
+              href="#backOffice-jwt-claim"
+              id="imgslsl-2-2"
+              class="nav-link ms-2 my-1"
+            >
+              Access user informations in functions and triggers
+            </a>
+          </nav>
+        </nav>
+        <nav id="ii1vs-2" class="nav flex-column mt-2">
+          <a href="#usersApi" id="iv2hh-2" class="nav-link">
+            Front office users API
+          </a>
+          <nav class="nav flex-column">
+            <a href="#usersApi-createUser" class="nav-link ms-2 my-1">
+              Create user from public access
+            </a>
+            <a href="#usersApi-activateUser" class="nav-link ms-2 my-1">
+              Activate user
+            </a>
+            <a
+              href="#usersApi-authenticateUser"
+              id="imglsl-2"
+              class="nav-link ms-2 my-1"
+            >
+              Authenticate user
+            </a>
+            <a href="#usersApi-resetPassword" class="nav-link ms-2 my-1">
+              Reset password
+            </a>
+            <a href="#usersApi-logout" class="nav-link ms-2 my-1">Logout</a>
+            <a href="#usersApi-refreshToken" class="nav-link ms-2 my-1">
+              Refresh token
+            </a>
+            <a
+              href="#usersApi-changePassword"
+              id="i3lpam"
+              class="nav-link ms-2 my-1"
+            >
+              Change password
+            </a>
+            <a href="#usersApi-getCurrentUser" class="nav-link ms-2 my-1">
+              Get current user
+            </a>
+            <a href="#usersApi-updateCurrentUser" class="nav-link ms-2 my-1">
+              Update current user
+            </a>
+          </nav>
+        </nav>
+      </nav>
+    </div>
+    <div
+      id="ih5ah"
+      class="h-100 overflow-auto col-xl-9 col-lg-9 col-md-12 col-sm-12 col-12 col-xxl-9 pt-5 ps-5 pb-5 pe-5"
+    >
+      <div
+        data-bs-spy="scroll"
+        data-bs-target="#navbar-users"
+        data-bs-smooth-scroll="true"
+        class="row"
+      >
+        <div id="usersApi" class="col-12">
+          <h3 id="i67er">Users plugin</h3>
+          <p id="ioyf2">
+            This plugin manage users inside you application. It means that your
+            application will have users inside it, those users will be able to
+            log in and you can configure what they can access, etc...
+          </p>
+        </div>
+        <div id="backOffice" class="col-12">
+          <h4>Back office</h4>
+          <p>
+            This section describe how you interact with the users plugin as a
+            BamZ user (i.e. as the application developper)
+          </p>
+        </div>
+        <div id="backOffice-settings" class="col-12">
+          <h5 id="iiwmc">Settings</h5>
+          <p id="if83i">
+            The users plugin behave accordingly to its settings. Its setting is
+            made inside the table
+            <code>users.settings</code>
+            <br />
+          </p>
+          <p id="iwyk6">The possible settings are :&nbsp;</p>
+          <table id="ij17q8" class="table">
+            <thead>
+              <tr>
+                <th scope="col" id="i1g54k">Setting</th>
+                <th scope="col" id="ihg1p2">Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr id="i13w4v">
+                <td><code id="ie92bw">public_creation</code></td>
+                <td>
+                  If
+                  <code id="igmug5">true</code>
+                  it will be possible to create a user from a public page (i.e.
+                  anonymously accessible page). The common usage is a user
+                  subscription page to the application. Default:
+                  <code id="ix2waj">false</code>
+                </td>
+              </tr>
+              <tr id="igx687">
+                <td><code id="ie92bw-2">role_on_public_creation</code></td>
+                <td id="i9df8n">
+                  Choose the role that will be given to the user when it is
+                  created from public page. Default:
+                  <code>public</code>
+                </td>
+              </tr>
+              <tr id="icv2o9">
+                <td><code id="ie92bw-3">active_on_creation</code></td>
+                <td id="iezdtp">
+                  If
+                  <code>true</code>
+                  , the user create will be active immediatly. Otherwise, it
+                  will need an activation through activation link. Default:
+                  <code>false</code>
+                </td>
+              </tr>
+              <tr id="itgz0b-2">
+                <td><code id="ie92bw-4-d2">activation_token_ttl_minutes</code></td>
+                <td id="icvirg-2">
+                  The number of minutes before the activation expire. After this delay the activation is expired.
+                  Default: <code>180</code> (3 hours)
+                </td>
+              </tr>
+              <tr id="itgz0b-2">
+                <td><code id="ie92bw-4-d2">activation_token_type</code></td>
+                <td id="icvirg-2">
+                  The type of activation token to use. Can be <code>uuid</code> (for link form activation) or <code>code</code> (for code input activation). Default: <code>uuid</code>
+                </td>
+              </tr>
+              <tr id="itgz0b-2">
+                <td><code id="ie92bw-4-d2">activation_token_length</code></td>
+                <td id="icvirg-2">
+                  The length of the activation token when using code type. Default: <code>6</code>
+                </td>
+              </tr>
+              <tr id="itgz0b">
+                <td><code id="ie92bw-4">allow_reset_password</code></td>
+                <td id="icvirg">
+                  If
+                  <code>true</code>
+                  , the user is allowed to reset password through an a password
+                  reset link. The common usage is a "I forgot my password"
+                  feature. Default:
+                  <code>false</code>
+                </td>
+              </tr>
+              <tr id="itgz0b-2">
+                <td><code id="ie92bw-4-d2">reset_password_token_ttl_minutes</code></td>
+                <td id="icvirg-2">
+                  The number of minutes before the reset password token expire. After this delay the reset password is expired.
+                  Default: <code>180</code> (3 hours)
+                </td>
+              </tr>
+              <tr id="itgz0b-2">
+                <td><code id="ie92bw-4-d2">access_token_ttl_minutes</code></td>
+                <td id="icvirg-2">
+                  The number of minutes before the user session expire. After this delay the session is expired.
+                  Default: <code>180</code> (3 hours)
+                </td>
+              </tr>
+              <tr id="itgz0b-2">
+                <td><code id="ie92bw-4-d2">refresh_token_ttl_minutes</code></td>
+                <td id="icvirg-2">
+                  The number of minutes within the user can renew its token session without re-enter his credentials. 
+                  After this delay the session cannot be renewed, he must login again.
+                  Default: <code>4320</code> (3 days)
+                </td>
+              </tr>
+              <tr id="itgz0b-4">
+                <td>
+                  <code id="ie92bw-4-4">message_template_password_reset</code>
+                </td>
+                <td id="icvirg-4">
+                  If you are using the password reset feature, in this settings,
+                  you must give the code of the message template to use.
+                  <br />
+                  The template will receive the following data :
+                  <code>
+                    { user: {...}, token: "...", type: "password_reset"}
+                  </code>
+                </td>
+              </tr>
+              <tr id="itgz0b-3">
+                <td>
+                  <code id="ie92bw-4-3">message_template_activation</code>
+                </td>
+                <td id="icvirg-3">
+                  If you are using the activation link feature, in this
+                  settings, you must give the code of the message template to
+                  use.
+                  <br />
+                  The template will receive the following data :
+                  <code>{ user: {...}, token: "...", type: "activation"}</code>
+                </td>
+              </tr>
+              <tr id="itgz0b-4">
+                <td>
+                  <code id="ie92bw-4-4">message_template_password_reset</code>
+                </td>
+                <td id="icvirg-4">
+                  If you are using the password reset feature, in this settings,
+                  you must give the code of the message template to use.
+                  <br />
+                  The template will receive the following data :
+                  <code>
+                    { user: {...}, token: "...", type: "password_reset"}
+                  </code>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <p>
+            If you want to use the activation by link or the password reset
+            features, you need to install the messages plugin and configure the
+            message templates to send the message with the activation or
+            password reset links
+          </p>
+          <div class="row">
+            <div id="i2z6wt" class="col-12 col-lg-6">
+              <h5 id="izc0zx">Change your settings</h5>
+              <div id="itz8wb" class="form-check">
+                <input
+                  type="checkbox"
+                  value=""
+                  id="public_creation"
+                  z-bind="settings.public_creation"
+                  class="form-check-input"
+                />
+                <label
+                  for="public_creation"
+                  id="i98r0g"
+                  class="form-check-label"
+                >
+                  Public creation
+                </label>
+              </div>
+              <div id="ii9d3n" class="d-flex align-items-center">
+                <div id="iwpabi" class="me-1">
+                  <label for="myCheckbox" id="imxajj" class="form-check-label">
+                    Role on public creation
+                  </label>
+                </div>
+                <div id="irg2oh" class="flex-grow-1">
+                  <input
+                    type="text"
+                    z-bind="settings.role_on_public_creation"
+                    id="ie88el"
+                    class="form-control"
+                  />
+                </div>
+              </div>
+              <div id="i1nvbg" class="form-check">
+                <input
+                  type="checkbox"
+                  value=""
+                  id="active_on_creation"
+                  z-bind="settings.active_on_creation"
+                  class="form-check-input"
+                />
+                <label
+                  for="active_on_creation"
+                  id="izlih4"
+                  class="form-check-label"
+                >
+                  Active on creation
+                </label>
+              </div>
+
+              <div
+                z-show-if="!settings.active_on_creation"
+                class="d-flex align-items-center mb-3"
+              >
+                <div class="me-1">
+                  <label
+                    for="activation_token_type"
+                    class="form-check-label"
+                  >
+                    Activation token type
+                  </label>
+                </div>
+                <div id="irg2oh-3" class="flex-grow-1">
+                  <select
+                    z-bind="settings.activation_token_type"
+                    id="activation_token_type"
+                    class="form-control">
+                    <option value="uuid">UUID (for link activation)</option>
+                    <option value="code">Code (for code input activation)</option>
+                  </select>
+                </div>
+              </div>
+              <div
+                z-show-if="!settings.active_on_creation && settings.activation_token_type == 'code'"
+                class="d-flex align-items-center mb-3"
+              >
+                <div class="me-1">
+                  <label
+                    for="activation_token_length"
+                    class="form-check-label"
+                  >
+                    Activation token length
+                  </label>
+                </div>
+                <div id="irg2oh-3" class="flex-grow-1">
+                  <input
+                    type="number"
+                    z-bind="settings.activation_token_length"
+                    id="activation_token_length"
+                    class="form-control"
+                  />
+                </div>
+              </div>
+              <div
+                z-show-if="!settings.active_on_creation"
+                class="d-flex align-items-center mb-3"
+              >
+                <div class="me-1">
+                  <label
+                    for="activation_token_ttl_minutes"
+                    class="form-check-label"
+                  >
+                    Activation token duration (minutes)
+                  </label>
+                </div>
+                <div id="irg2oh-3" class="flex-grow-1">
+                  <input
+                    type="text"
+                    z-bind="settings.activation_token_ttl_minutes"
+                    id="activation_token_ttl_minutes"
+                    class="form-control"
+                  />
+                </div>
+              </div>
+
+              <div id="inesu3" class="form-check">
+                <input
+                  type="checkbox"
+                  id="allow_reset_password"
+                  value=""
+                  z-bind="settings.allow_reset_password"
+                  class="form-check-input"
+                />
+                <label
+                  for="allow_reset_password"
+                  id="i00ahb"
+                  class="form-check-label"
+                >
+                  Allow reset password
+                </label>
+              </div>
+
+              <div
+                z-show-if="settings.allow_reset_password"
+                class="d-flex align-items-center mb-3"
+              >
+                <div class="me-1">
+                  <label
+                    for="reset_password_token_ttl_minutes"
+                    class="form-check-label"
+                  >
+                    Reset password token duration (minutes)
+                  </label>
+                </div>
+                <div id="irg2oh-3" class="flex-grow-1">
+                  <input
+                    type="text"
+                    z-bind="settings.reset_password_token_ttl_minutes"
+                    id="reset_password_token_ttl_minutes"
+                    class="form-control"
+                  />
+                </div>
+              </div>
+
+              <div
+                id="ii9d3n-3"
+                class="d-flex align-items-center mb-3"
+              >
+                <div id="iwpabi-3" class="me-1">
+                  <label
+                    for="access_token_ttl_minutes"
+                    id="imxajj-3"
+                    class="form-check-label"
+                  >
+                    User session duration (minutes)
+                  </label>
+                </div>
+                <div id="irg2oh-3" class="flex-grow-1">
+                  <input
+                    type="text"
+                    z-bind="settings.access_token_ttl_minutes"
+                    id="access_token_ttl_minutes"
+                    class="form-control"
+                  />
+                </div>
+              </div>
+              <div
+                id="ii9d3n-3"
+                class="d-flex align-items-center mb-3"
+              >
+                <div id="iwpabi-3" class="me-1">
+                  <label
+                    for="refresh_token_ttl_minutes"
+                    id="imxajj-3"
+                    class="form-check-label"
+                  >
+                    User session refresh max delay (minutes)
+                  </label>
+                </div>
+                <div id="irg2oh-3" class="flex-grow-1">
+                  <input
+                    type="text"
+                    z-bind="settings.refresh_token_ttl_minutes"
+                    id="refresh_token_ttl_minutes"
+                    class="form-control"
+                  />
+                </div>
+              </div>
+              
+              <div
+                z-show-if="!message_templates &amp;&amp; settings.public_creation &amp;&amp; (!settings.active_on_creation || settings.allow_reset_password)"
+                id="icbvvj"
+              >
+                <div role="alert" class="alert alert-primary">
+                  <div class="d-flex align-items-center">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="16"
+                      height="16"
+                      viewBox="0 0 16 16"
+                      role="img"
+                      aria-label="Warning:"
+                      class="bi bi-exclamation-triangle-fill flex-shrink-0 me-2"
+                    >
+                      <path
+                        d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767L8.982 1.566zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5zm.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2z"
+                      ></path>
+                    </svg>
+                    <div>
+                      <span>
+                        You need to activate message plugin to send the
+                        activation or password reset link
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div
+                id="ii9d3n-2"
+                z-show-if="settings.public_creation &amp;&amp; !settings.active_on_creation"
+                class="d-flex align-items-center mb-3"
+              >
+                <div id="iwpabi-2" class="me-1">
+                  <label
+                    for="message_template_activation"
+                    id="imxajj-2"
+                    class="form-check-label"
+                  >
+                    Template for activation message
+                  </label>
+                </div>
+                <div id="irg2oh-2" class="flex-grow-1">
+                  <select
+                    z-bind="settings.message_template_activation"
+                    id="message_template_activation"
+                    class="form-control"
+                  >
+                    <option></option>
+                    <option
+                      value="${template.code}"
+                      z-bind="template of message_templates"
+                    >
+                      [${template.code}] ${template.name}
+                    </option>
+                  </select>
+                </div>
+              </div>
+              <div
+                id="ii9d3n-3"
+                z-show-if="settings.public_creation &amp;&amp; settings.allow_reset_password"
+                class="d-flex align-items-center mb-3"
+              >
+                <div id="iwpabi-3" class="me-1">
+                  <label
+                    for="message_template_password_reset"
+                    id="imxajj-3"
+                    class="form-check-label"
+                  >
+                    Template for password reset message
+                  </label>
+                </div>
+                <div id="irg2oh-3" class="flex-grow-1">
+                  <select
+                    z-bind="settings.message_template_password_reset"
+                    id="message_template_password_reset"
+                    class="form-control"
+                  >
+                    <option></option>
+                    <option
+                      value="${template.code}"
+                      z-bind="template of message_templates"
+                    >
+                      [${template.code}] ${template.name}
+                    </option>
+                  </select>
+                </div>
+              </div>
+              <button
+                type="button"
+                z-on-click="view.saveSettings()"
+                id="i1qmxv"
+                class="btn btn-primary w-100"
+              >
+                <span>Save settings</span>
+              </button>
+            </div>
+            <div class="col-12 col-lg-6">
+              <h6>Source code</h6>
+              <code lang="js">
+                <pre>
+                    //example in code
+
+                    //read the settings
+                    const settings = await dbApi.db.users.settings.searchFirst();
+
+                    // do some modification
+                    settings.public_creation = true;
+                    settings.role_on_public_creation = "user";
+                    settings.active_on_creation = true;
+                    settings.allow_reset_password = true;
+
+                    //save the new settings
+                    await dbApi.db.users.settings.updateById(settings.id, settings) ;
+
+                </pre>
+              </code>
+            </div>
+          </div>
+        </div>
+        <div id="backOffice-roles" class="col-12">
+          <h5 class="mt-5">Roles</h5>
+          <p id="ivg7uu">
+            Each user is assigned to a role. The role is used to manage the
+            level of right the user have in the application.
+            <br />
+            The roles are stored in the table
+            <code>users.role</code>
+          </p>
+          <p>By default, there is 4 roles :&nbsp;</p>
+          <table class="table">
+            <thead>
+              <tr>
+                <th scope="col">Setting</th>
+                <th scope="col">Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>anonymous</code></td>
+                <td>
+                  This is the default role assigned to any "non user" visitor.
+                  Means that any user that is not logged in the application has
+                  this role. Usually this role is not given on a logged user
+                </td>
+              </tr>
+              <tr>
+                <td><code>readonly</code></td>
+                <td>
+                  This role aims to by assigned to user with readonly access on
+                  the application data
+                </td>
+              </tr>
+              <tr>
+                <td><code>user</code></td>
+                <td>
+                  This role aims to by assigned to "normal" user in the
+                  application. This usually the most ordinary level of access in
+                  the application
+                </td>
+              </tr>
+              <tr>
+                <td><code>admin</code></td>
+                <td>
+                  This role amis to be assigned to "admin" user in the
+                  application. This is the highest right on the application
+                  equals to the level you have as a BamZ developper user
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <p>
+            This is the default roles but you can add more roles to fit you
+            needs. However you should not remove the default roles.
+          </p>
+          <div class="row">
+            <div class="col-12 col-lg-6">
+              <h5>Roles</h5>
+              <ul class="list-group">
+                <li
+                  id="ivrfz4"
+                  z-bind="role of roles"
+                  class="list-group-item d-flex align-items-center"
+                >
+                  <div class="me-1">
+                    <label
+                      for="myCheckbox"
+                      id="iltqmg"
+                      class="form-check-label"
+                    >
+                      ${role.role}
+                    </label>
+                  </div>
+                  <div
+                    id="i3kw7d"
+                    z-show-if="role.role != 'anonymous' &amp;&amp; role.role != 'readonly' &amp;&amp; role.role != 'user' &amp;&amp; role.role != 'admin'"
+                    class="flex ms-auto"
+                  >
+                    <button
+                      type="button"
+                      id="ixn22w"
+                      z-on-click="view.deleteRole(role);"
+                      class="btn btn-danger"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="16"
+                        height="16"
+                        fill="currentColor"
+                        viewBox="0 0 16 16"
+                        icon-filter="tra"
+                        class="bi bi-trash"
+                      >
+                        <path
+                          d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"
+                        ></path>
+                        <path
+                          d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"
+                        ></path>
+                      </svg>
+                    </button>
+                  </div>
+                </li>
+              </ul>
+              <button
+                type="button"
+                z-on-click="view.addRole()"
+                id="iwzvol"
+                class="btn btn-primary w-100 mt-2"
+              >
+                <span>Add a role</span>
+              </button>
+            </div>
+            <div class="col-12 col-lg-6">
+              <h6>Source code</h6>
+              <code lang="js">
+                <pre>
+                    //example in code
+
+                    //read the existing roles
+                    const roles = await dbApi.db.users.role.search({}, {orderBy: ['DISPLAY_ORDER_ASC']});
+
+                    //add a new role
+                    await dbApi.db.users.role.create({role: "my_custom_role"});
+
+                    //remove a role
+                    await dbApi.db.users.role.deleteByRole("my_custom_role") ;
+                </pre>
+              </code>
+            </div>
+          </div>
+        </div>
+        <div id="backOffice-users" class="col-12">
+          <h5 id="iqkkio" class="mt-5">Manage users</h5>
+          <p id="i8d1x1">
+            The users are created in the table users.user
+            <br />
+          </p>
+          <p id="i9od86">Each user has the following properties</p>
+          <table class="table">
+            <thead>
+              <tr>
+                <th scope="col">Setting</th>
+                <th scope="col">Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td id="iszy7v"><code id="iij56g">login</code></td>
+                <td id="i7obbm">The login of the user</td>
+              </tr>
+              <tr>
+                <td id="irgmsj"><code id="i3nqch">email</code></td>
+                <td id="iz7tol">
+                  The email of the user. It is used to receive activation mail
+                  or password reset. Must be unique
+                </td>
+              </tr>
+              <tr>
+                <td id="inv52w"><code id="izngt8">role</code></td>
+                <td id="iv75hd">The role of the user</td>
+              </tr>
+              <tr>
+                <td id="ihfzhq"><code id="i79xv9">password</code></td>
+                <td id="igogeh">
+                  The password is store encrypted in the table
+                </td>
+              </tr>
+              <tr>
+                <td id="ihfzhq-2"><code id="i79xv9-2">active</code></td>
+                <td id="igogeh-2">
+                  If
+                  <code>true</code>
+                  the user is active and can login in the application
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <p>
+            As backoffice (or admin) user, you can manage the user by create or
+            update in this table
+          </p>
+          <div class="row">
+            <div class="col-12 col-lg-6">
+              <h5>List of users</h5>
+              <div
+                role="alert"
+                id="irqb7i"
+                z-show-if="users.length == 0"
+                class="alert alert-primary"
+              >
+                <div class="d-flex align-items-center">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 16 16"
+                    role="img"
+                    aria-label="Warning:"
+                    class="bi bi-exclamation-triangle-fill flex-shrink-0 me-2"
+                  >
+                    <path
+                      d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767L8.982 1.566zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5zm.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2z"
+                    ></path>
+                  </svg>
+                  <div><span>No user</span></div>
+                </div>
+              </div>
+              <ul class="list-group">
+                <li
+                  z-bind="user of users"
+                  id="im9xit"
+                  class="list-group-item d-flex align-items-center"
+                >
+                  <div
+                    z-class="${user.active?'text-success':'text-danger'}"
+                    id="izy55s"
+                    class="me-1"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="16"
+                      height="16"
+                      fill="currentColor"
+                      viewBox="0 0 16 16"
+                      icon-filter="circl"
+                      id="ij0ia1"
+                      class="bi bi-circle-fill"
+                    >
+                      <circle cx="8" cy="8" r="8"></circle>
+                    </svg>
+                  </div>
+                  <div id="i7kp7e" class="me-1">
+                    <label
+                      for="myCheckbox"
+                      id="iyvd02"
+                      class="form-check-label"
+                    >
+                      ${user.login} (${user.role})
+                    </label>
+                    <div class="text-secondary">${user.email}</div>
+                  </div>
+                  <div id="i6718z" class="flex ms-auto">
+                    <button
+                      type="button"
+                      z-on-click="view.editUser(user);"
+                      class="btn btn-primary me-1"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="16"
+                        height="16"
+                        fill="currentColor"
+                        viewBox="0 0 16 16"
+                        icon-filter="penci"
+                        class="bi bi-pencil"
+                      >
+                        <path
+                          d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325"
+                        ></path>
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      z-on-click="view.deleteUser(user);"
+                      class="btn btn-danger"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="16"
+                        height="16"
+                        fill="currentColor"
+                        viewBox="0 0 16 16"
+                        icon-filter="tra"
+                        class="bi bi-trash"
+                      >
+                        <path
+                          d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"
+                        ></path>
+                        <path
+                          d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"
+                        ></path>
+                      </svg>
+                    </button>
+                  </div>
+                </li>
+              </ul>
+              <button
+                type="button"
+                z-on-click="view.addUser()"
+                id="ibgku7"
+                class="btn btn-primary w-100 mt-2"
+              >
+                <span>Add an user</span>
+              </button>
+            </div>
+            <div class="col-12 col-lg-6">
+              <h6>Source code</h6>
+              <code lang="js">
+                <pre id="ioyhdi">
+                    //example in code
+
+                    //read the existing users
+                    const users = await dbApi.db.users.user.search({});
+
+                    //add a new user
+                    await dbApi.db.users.user.create({
+                        login: "mylogin",
+                        email:"my.mail@mail.com",
+                        active: true,
+                        role: "readonly",
+                        password: "mypassord",
+                    }) ;
+
+                    //add an user
+                    await dbApi.db.users.user.updateByLogin("mylogin",{
+                        active: true,
+                    }) ;
+
+                    //remove an user
+                    await dbApi.db.users.user.deleteByLogin("mylogin") ;
+                </pre>
+              </code>
+            </div>
+          </div>
+        </div>
+        <div id="backOffice-access" class="col-12">
+          <h5 id="iwb77d" class="mt-5">Tables access</h5>
+          <p id="ioz405">
+            Using the roles, you can defined access rights on each table
+            <br />
+          </p>
+          <p id="itnz6t">
+            The function&nbsp;
+            <code>users_role_table_list_permissions</code>
+            helps you to list the access defined on the table
+          </p>
+          <p id="iy6i86">
+            The function&nbsp;
+            <code>role_table_set_permissions</code>
+            and
+            <code>role_table_remove_permissions</code>
+            helps you give or remove access to some table
+          </p>
+          <button
+            type="button"
+            id="irx9xr"
+            z-on-click="view.testRead()"
+            class="btn btn-primary"
+          >
+            <span>Test read</span>
+          </button>
+          <button
+            type="button"
+            z-on-click="view.testInsert()"
+            id="i6bai9"
+            class="btn btn-primary"
+          >
+            <span>Test insert</span>
+          </button>
+          <button
+            type="button"
+            z-on-click="view.testUpdate()"
+            id="igi5ww"
+            class="btn btn-primary"
+          >
+            <span>Test update</span>
+          </button>
+          <button
+            type="button"
+            z-on-click="view.testDelete()"
+            id="it9udq"
+            class="btn btn-primary"
+          >
+            <span>Test delete</span>
+          </button>
+          <div id="i8grlo" class="row">
+            <div id="iw0ozu" class="col-12">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th scope="col">Schema</th>
+                    <th scope="col">Table</th>
+                    <th z-bind="role of roles">${role.role}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr z-bind="perm of permissions">
+                    <td>${perm.table_schema}</td>
+                    <td>${perm.table_name}</td>
+                    <td z-bind="role of perm.roles">
+                      <div z-bind="p of role.permissions" id="ivdu2i">
+                        <input type="checkbox" z-bind="p.allowed" />
+                        ${p.name}
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <p id="i41mvf">
+            It uses standard PostgreSQL
+            <a
+              href="https://www.postgresql.org/docs/17/sql-createrole.html"
+              target="_blank"
+            >
+              role
+            </a>
+            and
+            <a
+              href="https://www.postgresql.org/docs/17/sql-grant.html"
+              target="_blank"
+            >
+              grant
+            </a>
+            /
+            <a
+              href="https://www.postgresql.org/docs/17/sql-revoke.html"
+              target="_blank"
+            >
+              revoke
+            </a>
+            system. If you are familiar with this system, you can use plain SQL
+            queries to fine tuned the access to the tables
+          </p>
+          <p>
+            If you are using plain SQL queries, note that the role created in
+            the database has the database name as suffix. For example, your app
+            code is
+            <code>myapp</code>
+            , the role
+            <code>admin</code>
+            is known as
+            <code>myapp_admin</code>
+          </p>
+          <div class="row">
+            <div id="ii6bbk" class="col-12 col-lg-6">
+              <h6>Try it</h6>
+              <button
+                type="button"
+                z-on-click="view.getRoleTableListPermissions()"
+                id="ixlj7j"
+                class="btn btn-primary w-100"
+              >
+                <span>Get role table list permissions</span>
+              </button>
+              <code
+                lang="json"
+                id="list-permission-result"
+                z-show-if="listPermissionResult"
+                class="mt-2"
+              >
+                <pre id="isx8er-2-2"></pre>
+              </code>
+              <div id="iifdka" class="mb-3">
+                <label for="formInput1" id="i2yqhy" class="form-label">
+                  Role
+                </label>
+                <input
+                  type="text"
+                  id="formInput1"
+                  value="public"
+                  z-bind="permission_role"
+                  class="form-control"
+                />
+              </div>
+              <div id="in1223" class="mb-3">
+                <label for="formInput1" id="i3gb7k" class="form-label">
+                  Schema
+                </label>
+                <input
+                  type="text"
+                  value="public"
+                  id="ikyi11"
+                  z-bind="permission_schema"
+                  class="form-control"
+                />
+              </div>
+              <div class="mb-3">
+                <label for="formInput1-2" id="ifogev" class="form-label">
+                  Table
+                </label>
+                <input
+                  type="text"
+                  id="formInput1-2"
+                  z-bind="permission_table"
+                  class="form-control"
+                />
+              </div>
+              <div id="i6xq3e" class="mb-3">
+                <label for="formInput1-3" id="i2segj" class="form-label">
+                  Permission
+                </label>
+                <select
+                  type="text"
+                  id="formInput1-3"
+                  z-bind="permission_permission"
+                  class="form-control form-select"
+                >
+                  <option value="SELECT">SELECT (read)</option>
+                  <option value="INSERT">INSERT (create)</option>
+                  <option value="UPDATE">UPDATE (modify)</option>
+                  <option value="DELETE">DELETE (remove)</option>
+                </select>
+              </div>
+              <button
+                type="button"
+                z-on-click="view.addPermission()"
+                id="isdqji"
+                class="btn btn-primary w-100 mb-2"
+              >
+                <span id="id81n2">Add this permission</span>
+              </button>
+              <button
+                type="button"
+                z-on-click="view.removePermission()"
+                id="iy3ocn"
+                class="btn w-100 btn-outline-danger"
+              >
+                <span id="ijgcsh">Remove this permission</span>
+              </button>
+            </div>
+            <div id="i1qvcj" class="col-12 col-lg-6">
+              <h6 id="iglskf">Source code</h6>
+              <code lang="js">
+                <pre>
+                            // list existing permissions on tables
+
+                            const permissions = await dbApi.mutations.users_role_table_list_permissions();
+                            /* result is like : 
+                              [
+                                  { table_schema: "public", table_name: "foo", permissions: [
+                                    {permission: "SELECT", roles: [ {role: "admin", allowed: true}, ...]},
+                                    {permission: "INSERT", ...},
+                                    ...
+                                  ]}
+                              ]
+                              
+                            */
+
+                            // add a new permission
+                            await dbApi.mutations.users_role_table_set_permissions({
+                                input: {
+                                    table_schema: "public",
+                                    table_name: "foo",
+                                    role_name: "user",
+                                    permissions: "SELECT"
+                                }
+                            }) ;
+
+                            // remove a permission
+                            await dbApi.mutations.users_role_table_remove_permissions({
+                                input: {
+                                    table_schema: "public",
+                                    table_name: "foo",
+                                    role_name: "user",
+                                    permissions: "SELECT"
+                                }
+                            }) ;
+                            
+                            
+                            </pre
+                >
+              </code>
+            </div>
+          </div>
+        </div>
+        <div id="backOffice-advanced-security" class="col-12">
+          <h5 id="ikjjq4" class="mt-5">Advanced security check</h5>
+          <p>
+            In previous part, we saw that it is possible to restrict table
+            access depending on the role of the user. But how can we do a more
+            advanced security check on data. Such as fo instance, return only a
+            subset of data for an user that is not allowed to see the whole
+            table ?
+            <br />
+          </p>
+          <p>
+            There is mainly 2 way to handle that. The first one is to use row
+            security level on your table, the second is to create API functions
+            to performs action.
+          </p>
+          <h6 class="mt-5">Row security level</h6>
+          <p>
+            The row security level is a PostgreSQL feature that allow to defined
+            condition that will be test again the row of a table when perform
+            actions in it. It will ensure that if the condition is not valid,
+            the operation won't be performed on this row
+          </p>
+          <p>
+            There is 2 main advantages of this feature : the first one is that
+            you ensure the security at the lowest level so you cannot make a
+            mistake elsewhere and accidentally give access to a data that should
+            not have
+          </p>
+          <p>
+            The second advantage comes if you are creating an application mainly
+            organized around data (you read data, you insert data, you update
+            data). In this case, you code can remains plain read/insert/update
+            in consistant transactions and focus on data logic without worry
+            about the security access everywhere in the application
+          </p>
+          <p>
+            There is usually 2 drawbacks on this security method : the first one
+            is that there is a condition running on each row. If you have a huge
+            amount of data, you must be careful and avoid too complicated
+            conditions (with subqueries, joins... for example) to avoid
+            performance issues (it should not a big issue on small database
+            although)
+          </p>
+          <p id="irji9l">
+            The second drawback is that it is not familiar to do so for some
+            developers. Developers are used to write code (if... else...) and
+            find sometime unnatural to write SQL conditions. This is very
+            subjective and up to each of you
+          </p>
+          <div id="i8grlo-2" class="row">
+            <div id="iw0ozu-2" class="col-12">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th scope="col">Name</th>
+                    <th scope="col">Condition</th>
+                    <th scope="col">Apply to roles</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody z-bind="p of policies">
+                  <tr>
+                    <td colspan="4" id="i4u78l" class="bg-secondary-subtle">
+                      <div class="d-flex align-items-center">
+                        <div>Table ${p.table_schema}.${p.table_name}</div>
+                        <div class="ms-auto me-2">
+                          <span
+                            z-class="${p.row_security_active?'text-success':'text-danger'}"
+                            id="izy55s-2"
+                            class="me-1"
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              width="16"
+                              height="16"
+                              fill="currentColor"
+                              viewBox="0 0 16 16"
+                              icon-filter="circl"
+                              id="ij0ia1-2"
+                              class="bi bi-circle-fill"
+                            >
+                              <circle cx="8" cy="8" r="8"></circle>
+                            </svg>
+                            <span z-show-if="p.row_security_active">
+                              Security enabled
+
+                              <button
+                                type="button"
+                                z-on-click="view.policyDisable(p)"
+                                id="ii7ecd"
+                                class="btn btn-sm btn-outline-primary"
+                              >
+                                <span>Disable security</span>
+                              </button>
+                            </span>
+                            <span z-show-if="!p.row_security_active">
+                              Security disabled
+
+                              <button
+                                type="button"
+                                z-on-click="view.policyEnable(p)"
+                                id="ii7ecd-2"
+                                class="btn btn-sm btn-outline-primary"
+                              >
+                                <span>Disable enable</span>
+                              </button>
+                            </span>
+                          </span>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr z-bind="pol of p.policies">
+                    <td>${pol.policy_name}</td>
+                    <td>${pol.qual}</td>
+                    <td>${pol.roles}</td>
+                    <td>
+                      <button
+                        type="button"
+                        id="ihks24"
+                        z-on-click="view.removePolicy(pol, p)"
+                        class="btn btn-danger"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="16"
+                          height="16"
+                          fill="currentColor"
+                          viewBox="0 0 16 16"
+                          icon-filter="trash"
+                          id="i3xf3l"
+                          class="bi bi-trash"
+                        >
+                          <path
+                            d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"
+                          ></path>
+                          <path
+                            d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"
+                          ></path>
+                        </svg>
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+              <div class="row">
+                <div id="ixpqis" class="col-12 col-lg-6 col-xxl-2">
+                  <input
+                    type="text"
+                    id="ixekys"
+                    z-bind="policy_schema"
+                    placeholder="Schema"
+                    class="form-control"
+                  />
+                </div>
+                <div id="ijzkj6" class="col-12 col-lg-6 col-xxl-2">
+                  <input
+                    type="text"
+                    z-bind="policy_table"
+                    id="iwimb3"
+                    placeholder="Table"
+                    class="form-control"
+                  />
+                </div>
+                <div id="imp0ts" class="col-12 col-lg-6 col-xxl-2">
+                  <input
+                    type="text"
+                    z-bind="policy_name"
+                    placeholder="Policy name"
+                    id="is3zea"
+                    class="form-control"
+                  />
+                </div>
+                <div id="ijrii9" class="col-12 col-lg-6 col-xxl-2">
+                  <input
+                    type="text"
+                    z-bind="policy_role"
+                    placeholder="Apply to role"
+                    id="ixvaxs"
+                    class="form-control"
+                  />
+                </div>
+                <div id="i87kfo" class="col-12 col-lg-6 col-xxl-4">
+                  <input
+                    type="text"
+                    z-bind="policy_condition"
+                    placeholder="Condition"
+                    id="iuhmii"
+                    class="form-control"
+                  />
+                </div>
+                <div id="i5inob" class="col-12 col-lg-6 col-xxl-12">
+                  <button
+                    type="button"
+                    id="i7gjjj"
+                    z-on-click="view.addPolicy()"
+                    class="btn btn-primary mt-2 mb-2"
+                  >
+                    <span id="irnesl">Add policy</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div id="ibm7wc-2" class="row">
+            <div id="iwquol-2" class="col-12 col-lg-6">
+              <h6>Try it</h6>
+              <button
+                type="button"
+                z-on-click="view.policiesList()"
+                id="i34kqr-2"
+                class="btn btn-primary w-100"
+              >
+                <span>List policies</span>
+              </button>
+              <code
+                lang="json"
+                id="policies-list-result"
+                z-show-if="policiesStr"
+                class="mt-2"
+              >
+                <pre id="isx8er-2-3"></pre>
+              </code>
+            </div>
+            <div class="col-12 col-lg-6">
+              <h6>Source code</h6>
+              <code lang="js">
+                <pre id="isx8er-3">
+// call usersApi.getCurrentUser 
+
+const currentUser = await usersApi.getCurrentUser() ;
+
+</pre
+                >
+              </code>
+            </div>
+          </div>
+          <h6 class="mt-5">API functions</h6>
+          <p>
+            Another way to handle the security access is to remove the table
+            access to all users and then create functions to access or modify
+            the datas and check the security inside the functions themselves
+          </p>
+          <p>
+            The main advantage of this method is that it is more familiar to
+            developers (especially so called "backend developers") that are used
+            to write code to create API actions.
+          </p>
+          <p>
+            The main drawback of this method is that you will end to write a lot
+            of code (create this, read that, modify this and that...) that is
+            very redundant (it is mostly read and writes in the database) and
+            can be heavy to maintain if you have a big database
+          </p>
+          <h6 class="mt-5">Which one should I choose ?</h6>
+          <p>
+            There is no good answer. It is subjective and it depends on the type
+            of application you are creating.
+          </p>
+          <p>
+            On personal experience of writing dozens of applications, I found
+            that we often don't need a lot of advanced security check. A table
+            level access should suffice for 90% of the application so I suggest
+            to stick to it and for the little part you need advanced security
+            check, choose the method you feel the more comfortable with
+          </p>
+        </div>
+        <div id="backOffice-jwt-claim" class="col-12">
+          <h5 id="idvqb4" class="mt-5">
+            Access user informations in functions and triggers
+          </h5>
+          <p id="ivtl9j">
+            In your function and triggers, you may need to check informations on
+            the user performing the information
+          </p>
+          <p id="imzbv4">
+            The user informations are available in the JWT data :&nbsp;
+          </p>
+          <table id="ij17q8-2" class="table">
+            <thead>
+              <tr>
+                <th scope="col" id="i1g54k-2">JWT</th>
+                <th scope="col" id="ihg1p2-2">Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr id="i13w4v-2">
+                <td><code id="ie92bw-5">jwt.claims.role</code></td>
+                <td>
+                  The role of user. It is the full name :
+                  <code>databasename_rolename</code>
+                </td>
+              </tr>
+              <tr id="i13w4v-2-2">
+                <td><code id="ie92bw-5-2">jwt.claims.exp</code></td>
+                <td>Expiration timestamp of the token</td>
+              </tr>
+              <tr id="i13w4v-2-3">
+                <td><code id="ie92bw-5-3">jwt.claims.login</code></td>
+                <td>Login of the user</td>
+              </tr>
+              <tr id="i13w4v-2-4">
+                <td><code id="ie92bw-5-4">jwt.claims.email</code></td>
+                <td>Email of the user</td>
+              </tr>
+              <tr id="i13w4v-2-5">
+                <td><code id="ie92bw-5-5">jwt.claims.user_data</code></td>
+                <td>
+                  Data of the user (full record of
+                  <code>users.user</code>
+                  except of
+                  <code>password</code>
+                  field)
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <p id="i0svoz3">
+            To read these information, use the
+            <code>current_setting</code>
+            function (note that&nbsp;
+            <code>jwt.claims.user_data</code>
+            need
+            <code>::jsonb</code>
+            cast)
+          </p>
+          <code lang="sql">
+            <pre>
+      SELECT 
+       current_setting('jwt.claims.role', true) as role,
+       current_setting('jwt.claims.exp', true) as exp,
+       current_setting('jwt.claims.login', true) as login,
+       current_setting('jwt.claims.email', true) as email,
+       current_setting('jwt.claims.user_data', true)::jsonb as user_data
+                            </pre
+            >
+          </code>
+        </div>
+        <div id="usersApi-2" class="col-12">
+          <h4 class="mt-5">Front office users API</h4>
+          <p>
+            To manage users operation from front office context, we provide a
+            <code>usersApi</code>
+            utility. It means that this API will work without being logged as a
+            BamZ user
+          </p>
+          <p>
+            It helps to create user (subscription), authenticate user, change
+            password, activate user, reset password, read current user
+          </p>
+        </div>
+        <div id="usersApi-createUser" class="col-12">
+          <h5></h5>
+          <h5 id="ici6o1-2" draggable="false" class="gjs-selected">
+            Create user from public access
+          </h5>
+          <p>
+            If the setting
+            <code>public_creation</code>
+            is
+            <code>true</code>
+            , it is allowed to create user from public access (e.g. subscribe)
+          </p>
+          <p>
+            This is done using the function
+            <code>usersApi.createUser</code>
+          </p>
+          <p>
+            You must give at least
+            <code>login</code>
+            ,
+            <code>email</code>
+            and
+            <code>password</code>
+            .
+            <br />
+            If your
+            <code>users.user</code>
+            table contains other column, you can send them as well
+          </p>
+          <p>
+            The function returns the created user.
+            <br />
+            If the setting
+            <code>active_on_creation</code>
+            is
+            <code>true</code>
+            , the user is immediatly active.
+            <br />
+            If the setting
+            <code>active_on_creation</code>
+            is
+            <code>false</code>
+            , the created user object contains
+            <code>activation_token</code>
+            to perform the activation
+          </p>
+          <div class="row">
+            <div class="col-12 col-lg-6">
+              <h6>Try it</h6>
+              <div class="mb-3">
+                <label for="create_login" class="form-label">Login</label>
+                <input type="text" z-bind="create_login" class="form-control" />
+              </div>
+              <div class="mb-3">
+                <label for="create_email" class="form-label">E-mail</label>
+                <input type="text" z-bind="create_email" class="form-control" />
+              </div>
+              <div class="mb-3">
+                <label for="create_password" class="form-label">Password</label>
+                <input
+                  type="password"
+                  z-bind="create_password"
+                  class="form-control"
+                />
+              </div>
+              <button
+                type="button"
+                z-on-click="view.createUser()"
+                class="btn btn-primary w-100"
+              >
+                <span>Create user</span>
+              </button>
+            </div>
+            <div class="col-12 col-lg-6">
+              <h6>Source code</h6>
+              <code lang="js">
+                <pre>
+                            // call usersApi.createUser 
+                            // it must contains at least login, email and password
+                            // if your users.user table contains other column, you can send them as well
+
+                            const createdUser = await usersApi.createUser({ 
+                                login: view.data.create_login, 
+                                email: view.data.create_email, 
+                                password: view.data.create_password 
+                            }) ;
+                            
+                            // createdUser contains the created user object
+
+                            // if the setting active_on_creation is true, the user is immediatly active.
+                            // if the setting active_on_creation is false, the createdUser object contains activation_token to perform the activation
+                            
+                            </pre
+                >
+              </code>
+            </div>
+          </div>
+        </div>
+        <div id="usersApi-activateUser" class="col-12">
+          <h5 class="mt-4">Activate user</h5>
+          <p>
+            If the setting
+            <code>active_on_creation</code>
+            is
+            <code>false</code>
+            , the created user are created inactive. The user must activate his
+            account with a token received by message
+          </p>
+          <p id="ic6197">
+            When the user is created, an activation token is generated and send
+            to the user by message using the message template defined in
+            <code>message_template_activation</code>
+            setting. Usually the message contains a link with the token inside
+            and user click on the link to arrive to an activation page
+          </p>
+          <p id="i4x6fo">
+            To activate the user, the function&nbsp;
+            <code>usersApi.activateUser</code>
+            with the activation token. If the function succeed, the user is
+            activated
+          </p>
+          <p>The token is valid for 365 days</p>
+          <div class="row">
+            <div class="col-12 col-lg-6">
+              <h6>Try it</h6>
+              <div class="mb-3">
+                <label for="create_login" class="form-label">Token</label>
+                <input
+                  type="text"
+                  z-bind="activation_token"
+                  id="ithkub"
+                  class="form-control"
+                />
+              </div>
+              <button
+                type="button"
+                z-on-click="view.activateUser()"
+                id="ikznn6"
+                class="btn btn-primary w-100"
+              >
+                <span>Activate user</span>
+              </button>
+            </div>
+            <div id="iomjp9" class="col-12 col-lg-6">
+              <h6>Source code</h6>
+              <code lang="js">
+                <pre>
+                            // call usersApi.createUser 
+                            
+                            const activated = await usersApi.activateUser(token) ;
+                            if(activated){
+                                // Activation successful
+                            }else{
+                                // Invalid token
+                            }
+                            </pre
+                >
+              </code>
+            </div>
+          </div>
+        </div>
+        <div id="usersApi-authenticateUser" class="col-12">
+          <h5 id="ip61zf" class="mt-5">Authenticate user</h5>
+          <p id="isj0rq">
+            To authenticate an user, you need to call the function&nbsp;
+
+            <code id="iqhuva">
+              usersApi.authenticateUser(
+              <b>login</b>
+              ,
+              <b>password</b>
+              )
+            </code>
+          </p>
+          <p>
+            The authentication succeed if the login exists, the password is
+            correct and the user is activated
+          </p>
+          <div class="row">
+            <div class="col-12 col-lg-6">
+              <h6>Try it</h6>
+              <div
+                role="alert"
+                id="i7w7v6"
+                z-show-if="auth_error"
+                class="alert alert-danger"
+              >
+                <div class="d-flex align-items-center">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 16 16"
+                    role="img"
+                    aria-label="Warning:"
+                    class="bi bi-exclamation-triangle-fill flex-shrink-0 me-2"
+                  >
+                    <path
+                      d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767L8.982 1.566zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5zm.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2z"
+                    ></path>
+                  </svg>
+                  <div>
+                    <span id="i06nob" z-bind="auth_error">Error message</span>
+                  </div>
+                </div>
+              </div>
+              <div class="mb-3">
+                <label for="auth_login" class="form-label">Login</label>
+                <input type="text" z-bind="auth_login" class="form-control" />
+              </div>
+              <div class="mb-3">
+                <label for="auth_password" class="form-label">Password</label>
+                <input
+                  type="password"
+                  z-bind="auth_password"
+                  class="form-control"
+                />
+              </div>
+              <button
+                type="button"
+                z-on-click="view.authenticateUser()"
+                class="btn btn-primary w-100"
+              >
+                <span>Authenticate user</span>
+              </button>
+            </div>
+            <div class="col-12 col-lg-6">
+              <h6>Source code</h6>
+              <code lang="js">
+                <pre id="i6zhwn">
+// call usersApi.authenticateUser 
+
+const authOk = await usersApi.authenticateUser(view.data.auth_login, view.data.auth_password) ;
+if(authOk){
+    view.data.auth_error = null ;
+}else{
+    view.data.auth_error = "Authentication of user failed. Check the login and password" ;
+}
+
+//now all database API calls (using dbApi) will be done with the authenticated user
+
+</pre
+                >
+              </code>
+            </div>
+          </div>
+        </div>
+        <div id="usersApi-resetPassword" class="col-12">
+          <h5 id="iuor4e-2" class="mt-4">Reset password</h5>
+          <p>
+            If the setting
+            <code>allow_reset_password</code>
+            is
+            <code>true</code>
+            , the user is allowed to reset his password (the usual process "I
+            forgot my password")
+          </p>
+          <p id="ic6197-2">
+            The first step is to request the password reset token. Call the
+            function
+            <code>usersApi.requestPasswordReset</code>
+            with the email of the user. If the user is found, a password reset
+            token is generated and send to the user by message using the message
+            template defined in
+            <code>message_template_password_reset</code>
+            setting. Usually the message contains a link with the token inside
+            and user click on the link to a password reset page
+          </p>
+          <p>The token is valid for 3 hours</p>
+          <div class="row">
+            <div class="col-12 col-lg-6">
+              <h6>Try it</h6>
+              <div class="mb-3">
+                <label for="create_login" class="form-label">Email</label>
+                <input
+                  type="text"
+                  z-bind="reset_password_email"
+                  id="ithkub-2"
+                  class="form-control"
+                />
+              </div>
+              <button
+                type="button"
+                z-on-click="view.requestResetPassword()"
+                id="ikznn6-2"
+                class="btn btn-primary w-100"
+              >
+                <span>Request reset password token</span>
+              </button>
+            </div>
+            <div id="iomjp9-2" class="col-12 col-lg-6">
+              <h6>Source code</h6>
+              <code lang="js">
+                <pre>
+                            // call usersApi.requestPasswordReset 
+                            
+                            const success = await usersApi.requestPasswordReset(email) ;
+                            if(success){
+                                // Reset password request successful
+                            }else{
+                                // User not found or not active
+                            }
+                            </pre
+                >
+              </code>
+            </div>
+          </div>
+          <p>
+            With the token, call the function usersApi.resetPassword to reset
+            the password
+          </p>
+          <div class="row">
+            <div class="col-12 col-lg-6">
+              <h6>Try it</h6>
+              <div class="mb-3">
+                <label for="create_login" class="form-label">Token</label>
+                <input
+                  type="text"
+                  z-bind="reset_password_token"
+                  id="iictlv"
+                  class="form-control"
+                />
+              </div>
+              <div class="mb-3">
+                <label for="create_login" class="form-label">
+                  New password
+                </label>
+                <input
+                  type="password"
+                  z-bind="reset_password_password"
+                  id="imhzlh"
+                  class="form-control"
+                />
+              </div>
+              <button
+                type="button"
+                z-on-click="view.resetPassword()"
+                id="iktw8m"
+                class="btn btn-primary w-100"
+              >
+                <span>Reset the password</span>
+              </button>
+            </div>
+            <div id="iurhqb" class="col-12 col-lg-6">
+              <h6>Source code</h6>
+              <code lang="js">
+                <pre>
+                            // call usersApi.resetPassword 
+                            
+                            const success = await usersApi.resetPassword(token, newPassword) ;
+                            if(success){
+                                // Reset password successful
+                            }else{
+                                // Invalid token
+                            }
+                            </pre
+                >
+              </code>
+            </div>
+          </div>
+        </div>
+        <div id="usersApi-logout" class="col-12">
+          <h5 class="mt-5">Logout</h5>
+          <p id="itclgo">
+            To logout, you need to call the function&nbsp;
+
+            <code id="isqn7a">usersApi.logoutUser()</code>
+          </p>
+          <div class="row">
+            <div class="col-12 col-lg-6">
+              <h6>Try it</h6>
+              <button
+                type="button"
+                z-on-click="view.logoutUser()"
+                id="inc0bf"
+                class="btn btn-primary w-100"
+              >
+                <span id="ificy8">Logout</span>
+              </button>
+            </div>
+            <div class="col-12 col-lg-6">
+              <h6>Source code</h6>
+              <code lang="js">
+                <pre id="irm38i">
+// call usersApi.logoutUser 
+
+usersApi.logoutUser() ;
+
+// The user is no longer connected
+
+</pre
+                >
+              </code>
+            </div>
+          </div>
+        </div>
+        <div id="usersApi-refreshToken" class="col-12">
+          <h5 class="mt-5">Refresh token</h5>
+          <p>
+            When authenticate the user, an access token is created. This token
+            expire after 7 days. It is possible to refresh this token without
+            authenticate again by calling&nbsp;
+            <code>usersApi.refreshToken()</code>
+          </p>
+          <p>
+            A common usage is to call this function when the user is using the
+            application so the user remains connected while using the
+            application
+          </p>
+          <div class="row">
+            <div class="col-12 col-lg-6">
+              <h6>Try it</h6>
+              <button
+                type="button"
+                z-on-click="view.refreshToken()"
+                id="ipils4"
+                class="btn btn-primary w-100"
+              >
+                <span>Refresh token</span>
+              </button>
+            </div>
+            <div id="ia9jkh" class="col-12 col-lg-6">
+              <h6>Source code</h6>
+              <code lang="js">
+                <pre id="iv3it9">
+// call usersApi.refreshToken 
+
+const success = await usersApi.refreshToken() ;
+if(success){
+  // The token has been correctly refreshed
+}else{
+  // The user was already disconnected, can't refresh
+}
+
+
+</pre
+                >
+              </code>
+            </div>
+          </div>
+        </div>
+        <div id="usersApi-changePassword" class="col-12">
+          <h5 class="mt-5">Change password</h5>
+          <p id="ifkpii">
+            The change the current user password, call the function
+            <code>usersApi.changePassword</code>
+            . It takes the old password and the new password. To succeed, the
+            old password must be correct
+          </p>
+          <div class="row">
+            <div id="iwluaj" class="col-12 col-lg-6">
+              <h6>Try it</h6>
+              <div id="iy5hsp-2" class="mb-3">
+                <label for="old_password" class="form-label">
+                  Old password
+                </label>
+                <input
+                  type="password"
+                  z-bind="old_password"
+                  id="imhzlh-2"
+                  class="form-control"
+                />
+              </div>
+              <div id="iy5hsp-2-2" class="mb-3">
+                <label for="new_password" class="form-label">
+                  New password
+                </label>
+                <input
+                  type="password"
+                  z-bind="new_password"
+                  id="imhzlh-2-2"
+                  class="form-control"
+                />
+              </div>
+              <button
+                type="button"
+                z-on-click="view.changePassword()"
+                class="btn btn-primary w-100"
+              >
+                <span>Change password</span>
+              </button>
+            </div>
+            <div id="i1z4om" class="col-12 col-lg-6">
+              <h6>Source code</h6>
+              <code lang="js">
+                <pre id="i66rj1">
+// call usersApi.changePassword 
+
+const success = await usersApi.changePassword(oldPassword, newPassword) ;
+if(success){
+  // The password has been updated
+}else{
+  // The password is not updated
+}
+
+
+</pre
+                >
+              </code>
+            </div>
+          </div>
+        </div>
+        <div id="usersApi-getCurrentUser" class="col-12">
+          <h5 class="mt-5">Get current user</h5>
+          <p id="i9cxao">
+            To get the current user informations, you can call the
+            function&nbsp;
+
+            <code>usersApi.getCurrentUser()</code>
+          </p>
+          <div class="row">
+            <div id="iwquol" class="col-12 col-lg-6">
+              <h6>Try it</h6>
+              <button
+                type="button"
+                z-on-click="view.getCurrentUser()"
+                id="i34kqr"
+                class="btn btn-primary w-100"
+              >
+                <span>Get current user informations</span>
+              </button>
+              <code
+                lang="json"
+                id="current-user-result"
+                z-show-if="currentUserStr"
+                class="mt-2"
+              >
+                <pre id="isx8er-2"></pre>
+              </code>
+            </div>
+            <div class="col-12 col-lg-6">
+              <h6>Source code</h6>
+              <code lang="js">
+                <pre id="isx8er">
+// call usersApi.getCurrentUser 
+
+const currentUser = await usersApi.getCurrentUser() ;
+
+</pre
+                >
+              </code>
+            </div>
+          </div>
+        </div>
+        <div id="usersApi-updateCurrentUser" class="col-12">
+          <h5 class="mt-5">Update current user information</h5>
+          <p>
+            To update the current user informations, you can call the
+            function&nbsp;
+
+            <code>usersApi.updateCurrentUser()</code>
+          </p>
+          <p id="iiy9xp">
+            It is forbidden to update the fields
+            <code>login</code>
+            ,
+            <code>password</code>
+            ,
+            <code>active</code>
+            and
+            <code>role</code>
+          </p>
+          <div class="row">
+            <div id="ija86t" class="col-12 col-lg-6">
+              <h6 id="iis0kj">Try it</h6>
+              <div id="i8x5ry-2" class="mb-3">
+                <label for="update_email" class="form-label">
+                  My new email
+                </label>
+                <input
+                  type="text"
+                  z-bind="update_email"
+                  id="iictlv-2"
+                  class="form-control"
+                />
+              </div>
+              <button
+                type="button"
+                z-on-click="view.updateCurrentUser()"
+                id="iis7on"
+                class="btn btn-primary w-100"
+              >
+                <span>Update current user informations</span>
+              </button>
+              <code
+                lang="json"
+                id="updated-user-result"
+                z-show-if="updatedUserStr"
+                class="mt-2"
+              >
+                <pre id="isx8er-2-4"></pre>
+              </code>
+            </div>
+            <div id="iptf9o" class="col-12 col-lg-6">
+              <h6>Source code</h6>
+              <code lang="js">
+                <pre>
+// call usersApi.updateCurrentUser 
+
+const updatedUser = await usersApi.updateCurrentUser({email: "new.email@mail.com"}) ;
+
+</pre
+                >
+              </code>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="container d-none">
+  <div class="row">
+    <div class="col-12">
+      <h3>Create user from public access</h3>
+      <p></p>
+    </div>
+    <div class="col-12 col-lg-6 col-xxl-4">
+      <button
+        type="button"
+        id="iqeco"
+        z-on-click="view.testRead()"
+        class="btn btn-primary"
+      >
+        <span>Test read</span>
+      </button>
+      <code lang="js"></code>
+    </div>
+    <div class="col-12 col-lg-6 col-xxl-4">
+      <div class="mb-3">
+        <label for="formInput1" class="form-label">Login</label>
+        <input type="text" z-bind="login" class="form-control" />
+      </div>
+      <div class="mb-3">
+        <label for="formInput1" class="form-label">Password</label>
+        <input type="password" z-bind="password" class="form-control" />
+      </div>
+      <button
+        type="button"
+        z-on-click="view.login()"
+        class="btn btn-primary w-100"
+      >
+        <span>Login</span>
+      </button>
+    </div>
+    <div class="col-12 col-lg-6 col-xxl-4">
+      <span>Logged ? ${logged}</span>
+      <div class="row">
+        <div class="col-12 col-lg-6 col-xxl-12">
+          <button
+            type="button"
+            id="ikc7z"
+            z-on-click="view.logout()"
+            class="btn btn-primary"
+          >
+            <span>Logout</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
