@@ -1,0 +1,46 @@
+<div></div>
+<form>
+  <div class="container">
+    <div class="row">
+      <div class="col-12">
+        <div class="mb-3">
+          <label for="formInput1" class="form-label">Code</label>
+          <input
+            type="text"
+            id="formInput1"
+            z-bind="code"
+            required=""
+            class="form-control"
+          />
+        </div>
+      </div>
+      <div class="col-12">
+        <div class="mb-3">
+          <label for="formType" class="form-label">Type</label>
+          <select z-bind="provider_type" id="formType" required="" class="form-control form-select">
+            <option value=""></option>
+            <option value="google">Google</option>
+          </select>
+        </div>
+      </div>
+      <div class="col-12" z-show-if="provider_type==='google'">
+        <div class="mb-3">
+          <label for="formClientId" class="form-label">Client ID</label>
+          <input
+            type="text"
+            z-bind="provider_settings.client_id"
+            id="i3w7m"
+            required=""
+            class="form-control"
+          />
+        </div>
+      </div>
+     
+      <div class="col-12">
+        <button type="button" z-on-click="view.validate()" class="btn btn-primary w-100">
+          <span>Validate</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</form>

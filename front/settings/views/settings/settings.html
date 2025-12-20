@@ -19,6 +19,9 @@
             >
               Settings
             </a>
+            <a href="#backOffice-authProviders" id="imglsddl" class="nav-link ms-2 my-1">
+              Auth providers
+            </a>
             <a href="#backOffice-roles" id="imglsl" class="nav-link ms-2 my-1">
               Roles
             </a>
@@ -582,6 +585,163 @@
             </div>
           </div>
         </div>
+
+        <div id="backOffice-authProviders" class="col-12">
+          <h5 id="iqkkio" class="mt-5">Auth providers</h5>
+          <p id="i8d1x1">
+            You can configure auth providers to allow users to authenticate using
+            external services (like Google, Facebook, etc...)
+            <br />
+          </p>
+          <p id="i9od86">Each auth provider has the following properties</p>
+          <table class="table">
+            <thead>
+              <tr>
+                <th scope="col">Setting</th>
+                <th scope="col">Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td id="iszy7v"><code id="iij56g">code</code></td>
+                <td id="i7obbm">The code of the auth provider</td>
+              </tr>
+              <tr>
+                <td id="irgmsj"><code id="i3nqch">provider_type</code></td>
+                <td id="iz7tol">
+                  The type of the auth provider. Possible values are : <code>google</code>
+                </td>
+              </tr>
+              <tr>
+                <td id="inv52w"><code id="izngt8">provider_settings</code></td>
+                <td id="iv75hd">The settings of the auth provider. For google, it should contains a property <code>client_id</code></td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="row">
+            <div class="col-12 col-lg-6">
+              <h5>List of auth providers</h5>
+              <div
+                role="alert"
+                id="irqb7i"
+                z-show-if="authProviders.length == 0"
+                class="alert alert-primary"
+              >
+                <div class="d-flex align-items-center">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 16 16"
+                    role="img"
+                    aria-label="Warning:"
+                    class="bi bi-exclamation-triangle-fill flex-shrink-0 me-2"
+                  >
+                    <path
+                      d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767L8.982 1.566zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5zm.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2z"
+                    ></path>
+                  </svg>
+                  <div><span>No auth provider</span></div>
+                </div>
+              </div>
+              <ul class="list-group">
+                <li
+                  z-bind="authProvider of authProviders"
+                  id="im9xit"
+                  class="list-group-item d-flex align-items-center"
+                >
+                  
+                  <div id="i7kp7e" class="me-1">
+                      ${authProvider.code} (<code>${authProvider.provider_type}</code>)
+                  </div>
+                  <div id="i6718z" class="flex ms-auto">
+                    <button
+                      type="button"
+                      z-on-click="view.editAuthProvider(authProvider);"
+                      class="btn btn-primary me-1"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="16"
+                        height="16"
+                        fill="currentColor"
+                        viewBox="0 0 16 16"
+                        icon-filter="penci"
+                        class="bi bi-pencil"
+                      >
+                        <path
+                          d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325"
+                        ></path>
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      z-on-click="view.deleteAuthProvider(authProvider);"
+                      class="btn btn-danger"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="16"
+                        height="16"
+                        fill="currentColor"
+                        viewBox="0 0 16 16"
+                        icon-filter="tra"
+                        class="bi bi-trash"
+                      >
+                        <path
+                          d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"
+                        ></path>
+                        <path
+                          d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"
+                        ></path>
+                      </svg>
+                    </button>
+                  </div>
+                </li>
+              </ul>
+              <button
+                type="button"
+                z-on-click="view.addAuthProvider()"
+                id="ibgku7"
+                class="btn btn-primary w-100 mt-2"
+              >
+                <span>Add an auth provider</span>
+              </button>
+            </div>
+            <div class="col-12 col-lg-6">
+              <h6>Source code</h6>
+              <code lang="js">
+                <pre id="ioyhdi">
+                    //example in code
+
+                    //read the existing auth providers
+                    const authProviders = await dbApi.db.users.authProvider.search({});
+
+                    //add a new auth provider
+                    await dbApi.db.users.authProvider.create({
+                        code: "myAuthProvider",
+                        provider_type:"google",
+                        provider_settings: {
+                            client_id: "myClientId"
+                        }
+                    }) ;
+
+                    //update an auth provider
+                    await dbApi.db.users.authProvider.updateByCode("myAuthProvider",{
+                        provider_settings: {
+                            client_id: "myClientId"
+                        }
+                    }) ;
+
+                    //remove an auth provider
+                    await dbApi.db.users.authProvider.deleteByCode("myAuthProvider") ;
+                </pre>
+              </code>
+            </div>
+          </div>
+        </div>
+
+
         <div id="backOffice-roles" class="col-12">
           <h5 class="mt-5">Roles</h5>
           <p id="ivg7uu">

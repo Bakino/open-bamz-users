@@ -170,6 +170,74 @@ class UsersClient {
         let result = await this.graphqlClient.mutations.users_password_reset_apply({input: {token: resetToken, new_password: newPassword}})
         return result;
     }
+
+    /**
+     * Get the settings of a provider
+     * 
+     * @param {string} code The code of the provider
+     * @returns {Promise<any>} settings of the provider
+     */
+    async publicAuthProviderSettings(code){
+        let result = await this.graphqlClient.mutations.users_public_auth_provider_settings({input: {code}})
+        return result;
+    }
+
+    /**
+     * Load the login button for a provider into an element
+     * @param {string} code The code of the provider
+     * @param {HTMLElement|string} elementOrId The element or its id where to load the button
+     * @param {object} options Options for the button (depends on provider)
+     */
+    async loadProviderLoginButton(code, elementOrId, options = {}) {
+        let settings = await this.publicAuthProviderSettings(code) ;
+        if(!settings){
+            throw new Error("Auth provider not found") ;
+        }
+        // @ts-ignore
+        if(settings.provider_type === "google"){
+            await loadGsiScript() ;
+            // @ts-ignore
+            if (!window.google) return console.warn('Google library not loaded yet');
+            // @ts-ignore
+            window.google.accounts.id.initialize({ //https://developers.google.com/identity/gsi/web/reference/js-reference
+                // @ts-ignore
+                client_id: settings.provider_settings.client_id,
+                callback: (response)=>{
+                    fetch('/open-bamz-users/auth/provider', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({ id_token: response.credential, provider: code })
+                    }).then(r => r.json()).then(console.log).catch(console.error);
+                },
+            });
+            if(typeof elementOrId === "string"){
+                elementOrId = document.getElementById(elementOrId) ;
+            }
+            const buttonOptions = { //https://developers.google.com/identity/gsi/web/guides/display-button
+                theme: 'outline', 
+                size: 'large',
+                ...options
+            } ;
+            // @ts-ignore
+            window.google.accounts.id.renderButton(elementOrId,buttonOptions);
+        }
+    }
+}
+
+function loadGsiScript() {
+    // @ts-ignore
+    if (window.google && window.google.accounts) return Promise.resolve(window.google);
+    return new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = 'https://accounts.google.com/gsi/client';
+        s.async = true;
+        s.defer = true;
+        // @ts-ignore
+        s.onload = () => (window.google && window.google.accounts) ? resolve(window.google) : reject(new Error('GSI loaded but google.accounts missing'));
+        s.onerror = (e) => reject(e);
+        document.head.appendChild(s);
+    });
 }
 
 /**
@@ -200,7 +268,7 @@ export async function getUsersClient(appNameOrGraphqlClient=""){
         }else{
             // load db-lib
             // @ts-ignore
-            let {getGraphqlClient} = await import("https://cdn.jsdelivr.net/gh/Bakino/open-bamz-database@68c8323a62db4aa1253000e8033aa90dc8d1ce5e/front/lib/db-lib.mjs") ;
+            let {getGraphqlClient} = await import("https://cdn.jsdelivr.net/gh/Bakino/open-bamz-database@988f1aaa8c61b436cdab656e507829556c68b742/front/lib/db-lib.mjs") ;
             graphqlClient = await getGraphqlClient(appNameOrGraphqlClient) ;
         }
     }

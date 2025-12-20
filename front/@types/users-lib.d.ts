@@ -147,4 +147,22 @@ declare class UsersClient {
      * @returns A promise that resolves to true if the password is reset, false otherwise.
      */
     resetPassword(resetToken: string, newPassword: string): Promise<boolean>;
+
+    /**
+     * Get the settings of a provider
+     * 
+     * @param code The code of the provider
+     * @returns settings of the provider
+     */
+    publicAuthProviderSettings(code: string): Promise<any>;
+
+    /**
+     * Load the login button for a provider into an element
+     * @param code - The code of the provider
+     * @param elementOrId - The element or its id where to load the button
+     * @param options - Options for the button (depends on provider)
+     */
+    loadProviderLoginButton(code: string, elementOrId: HTMLElement | string, options?: object): Promise<void>;
+
+
 }

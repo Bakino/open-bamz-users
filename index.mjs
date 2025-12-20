@@ -2,6 +2,7 @@ import {readFile} from 'fs/promises';
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import {randomBytes} from 'crypto';
+import {OAuth2Client} from 'google-auth-library';
 
 /**
  * Called on each application startup (or when the plugin is enabled)
@@ -36,6 +37,28 @@ export const prepareDatabase = async ({options, client, grantSchemaAccess}) => {
         SELECT 1, false, 'user', false, false
         WHERE NOT EXISTS (SELECT * FROM users.settings)`);
 
+
+    await client.query(`CREATE TABLE IF NOT EXISTS users.auth_providers(
+        code text PRIMARY KEY,
+        provider_type text,
+        provider_settings JSONB
+    )`);
+
+    await client.query(`CREATE OR REPLACE FUNCTION users.public_auth_provider_settings(code text)
+RETURNS JSON AS $$
+  
+    const result = plv8.execute("SELECT * FROM users.auth_providers WHERE code = $1", [code]);
+    if(result.length === 0){
+        return null;
+    }else{
+        const provider = result[0] ;
+        if(provider.provider_type === 'google'){
+            return { provider_type: provider.provider_type, provider_settings: {client_id: provider.provider_settings.client_id } };
+        }
+    }
+    return null;
+$$
+LANGUAGE plv8 security definer`);
 
     // Role table 
     await client.query(`CREATE TABLE IF NOT EXISTS users.role(
@@ -323,6 +346,7 @@ LANGUAGE plv8 security definer`);
     await client.query(`CREATE OR REPLACE FUNCTION users.user_read() RETURNS users.user AS $$
             const user = plv8.execute(\`SELECT * FROM users.user WHERE login = current_setting('jwt.user_'||current_database()||'.login')\`)[0];
             user.password = null;
+            user.role = null;
             return user;
         $$
     LANGUAGE plv8 security definer`);
@@ -520,13 +544,17 @@ LANGUAGE plv8 security definer`);
 
 
 
-    await grantSchemaAccess("users"); ;
+    await grantSchemaAccess("users", [
+        { role: "admin", level: "admin"},
+        { role: "user", level: "none"},
+        { role: "readonly", level: "none"}
+    ]); 
 
     //console.log(`GRANT USAGE ON SCHEMA users TO anonymous`);
-    await client.query(`GRANT USAGE ON SCHEMA users TO anonymous`);
     //console.log(`GRANT EXECUTE ON FUNCTION users.user_authenticate TO anonymous`);
-
+    
     for(let role of ["anonymous",`${options.database}_readonly`,`${options.database}_user`,`${options.database}_admin`]){
+        await client.query(`GRANT USAGE ON SCHEMA users TO ${role}`);
         await client.query(`GRANT EXECUTE ON FUNCTION users.user_authenticate TO ${role}`);
         // await client.query(`GRANT EXECUTE ON FUNCTION users.user_refresh TO ${role}`);
         await client.query(`GRANT EXECUTE ON FUNCTION users.password_reset_request TO ${role}`);
@@ -536,6 +564,7 @@ LANGUAGE plv8 security definer`);
         await client.query(`GRANT EXECUTE ON FUNCTION users.user_read TO ${role}`);
         await client.query(`GRANT EXECUTE ON FUNCTION users.user_create TO ${role}`);
         await client.query(`GRANT EXECUTE ON FUNCTION users.update_user TO ${role}`);
+        await client.query(`GRANT EXECUTE ON FUNCTION users.public_auth_provider_settings TO ${role}`);
     }
     for(let role of [`${options.database}_admin`]){
         await client.query(`GRANT EXECUTE ON FUNCTION users.role_table_list_permissions TO ${role}`);
@@ -568,10 +597,12 @@ export const cleanDatabase = async ({client}) => {
 /**
  * Init plugin when Open BamZ platform start
  */
-export const initPlugin = async ({ loadPluginData, runQuery }) => {
+export const initPlugin = async ({ app, loadPluginData, runQuery }) => {
     const router = express.Router();
 
     const PRIVATE_KEY = await readFile(process.env.JWT_PRIVATE_KEY_FILE);
+    const PUBLIC_KEY  = await readFile(process.env.JWT_PUBLIC_KEY_FILE);
+
 
     function generateToken() {
         return randomBytes(48).toString('hex');
@@ -586,8 +617,16 @@ export const initPlugin = async ({ loadPluginData, runQuery }) => {
         });
     }
 
+    function verifyAccessToken(token) {
+        return jwt.verify(token, PUBLIC_KEY, {
+        algorithms: ['RS256'],
+        audience: 'bamz-api',
+        issuer: 'bamz',
+        });
+    }
+
     async function saveSession(appName, userId, token, expiresAt) {
-        await runQuery({database: appName}, `INSERT INTO users.session (account_id, token, expire_time, revoked) VALUES ($1, $2, $3, false)
+        await runQuery({database: appName}, `INSERT INTO users.session (login, token, expire_time, revoked) VALUES ($1, $2, $3, false)
             ON CONFLICT (token) DO UPDATE SET expire_time = $3, revoked = false`, [userId, token, expiresAt])
     }
 
@@ -596,13 +635,13 @@ export const initPlugin = async ({ loadPluginData, runQuery }) => {
     }
 
     async function findSession(appName, token) {
-        const result = await runQuery({database: appName}, `SELECT account_id, token, expire_time, revoked FROM users.session WHERE token = $1`, [token]);
+        const result = await runQuery({database: appName}, `SELECT login, token, expire_time, revoked FROM users.session WHERE token = $1`, [token]);
         if (result.rows.length === 0) return null;
         return result.rows[0];
     }
 
-    async function authenticateUser(appName, email, password) {
-        let result = await runQuery({database: appName}, `SELECT users.user_authenticate(($1, $2) as account`, [email, password]) ;
+    async function authenticateUser(appName, login, password) {
+        let result = await runQuery({database: appName}, `SELECT users.user_authenticate($1, $2) as account`, [login, password]) ;
         if(result.rows.length>0){
             return result.rows[0].account ;
         }
@@ -619,7 +658,7 @@ export const initPlugin = async ({ loadPluginData, runQuery }) => {
     async function genSession(user, req, res){
         let access_token_ttl_minutes = 3 * 60 ; // default 3h
         let refresh_token_ttl_minutes = 3 * 24 * 60 // default 3 days
-        let resultSettings = await runQuery({database: req.appName}, `SELECT users.settings`, []) ;
+        let resultSettings = await runQuery({database: req.appName}, `SELECT * FROM users.settings`, []) ;
         if(resultSettings.rows.length>0){
             if(resultSettings.access_token_ttl_minutes){
                 access_token_ttl_minutes = resultSettings.access_token_ttl_minutes ;
@@ -629,6 +668,8 @@ export const initPlugin = async ({ loadPluginData, runQuery }) => {
             }
         }
 
+        delete user.password ;
+        user.role = req.appName + "_" + user.role ;
         const accessToken = signAccessToken(user , access_token_ttl_minutes);
 
         // create refresh token
@@ -654,18 +695,116 @@ export const initPlugin = async ({ loadPluginData, runQuery }) => {
         });
     }
 
+    /**
+     * Authentication middleware:
+     * 1. Read access token from HttpOnly cookie
+     * 2. Verify JWT
+     * 3. Inject Authorization header for PostGraphile v5
+     */
+
+    const jwtMiddleware = async (req, res, next) => {
+        const jwtName = `user_${req.appName}` ;
+        const cookiePrefix = `jwt-${jwtName}-`
+        if(req.cookies && req.appName){
+            const cookieAccess = req.cookies[`${cookiePrefix}access`];
+            const cookieRefresh = req.cookies[`${cookiePrefix}refresh`];
+            if(cookieAccess && cookieRefresh){
+                try {
+                    const decoded = verifyAccessToken(cookieAccess);
+
+                    const entry = await findSession(req.appName, cookieRefresh);
+                    if (!entry || entry.revoked || entry.expire_time < new Date()) {
+                        return next() ;
+                    }
+
+                    if(!req.jwt) req.jwt = {};
+                    req.jwt[jwtName] = decoded;
+                // eslint-disable-next-line no-unused-vars
+                } catch (err) {
+                    // invalid or expired — ignore and continue
+                }
+            }
+        }
+        next();
+    };
+    
+
+    app.use(jwtMiddleware) ;
+
 
     router.post('/login', express.json(), async (req, res) => {
-        const { email, password } = req.body;
+        const { login, password } = req.body;
 
-        const user = await authenticateUser(req.appName, email, password);
+        const user = await authenticateUser(req.appName, login, password);
         if (!user) return res.status(401).json({ error: 'Invalid credentials' });
 
-        genSession(user, req, res)
+        await genSession(user, req, res)
         
 
         res.json({ ok: true });
     });
+
+    const googleClients = {};
+    function getGoogleClient(clientId){
+        if(!googleClients[clientId]){
+            googleClients[clientId] = new OAuth2Client(clientId);
+        }
+        return googleClients[clientId];
+    }
+
+    router.post('/auth/provider', async (req, res) => {
+        const { provider } = req.body;
+        let result = await runQuery({database: req.appName}, `SELECT * FROM users.auth_providers WHERE code = $1`, [provider]);
+        if(result.rows.length === 0){
+            return res.status(400).json({ error: 'unknown_provider' });
+        }
+        const providerData = result.rows[0];
+        let login = null;
+        let email = null;
+        if(providerData.provider_type === 'google'){
+            const { id_token } = req.body;
+            if(!id_token) return res.status(400).json({ error: 'id_token required' });
+            try{
+                const ticket = await getGoogleClient(providerData.provider_settings.client_id).verifyIdToken({ idToken: id_token, audience: providerData.client_id });
+                const payload = ticket.getPayload();
+                email = payload.email;
+                const sub = payload.sub;
+                login = `google_${sub}`;
+            }catch(err){
+                console.error('Google auth error', err);
+                res.status(401).json({ error: 'invalid_token' });
+            }
+        }else{
+            return res.status(400).json({ error: 'unsupported_provider' });
+        }
+
+        if(!login || !email){
+            return res.status(400).json({ error: 'invalid_provider_data' });
+        }
+
+        // try to find existing user by login or email
+        result = await runQuery({database: req.appName}, `SELECT * FROM users.user WHERE login = $1 OR email = $2`, [login, email]);
+        if(result.rows.length === 0){
+            // create user (activate immediately for social login)
+            const settingsRes = await runQuery({database: req.appName}, `SELECT * FROM users.settings`, []);
+            if(!settingsRes.rows[0]?.public_creation){
+                return res.status(401).json({ error: 'Invalid credentials' });
+            }
+            let role = 'user';
+            if(settingsRes.rows.length>0 && settingsRes.rows[0].role_on_public_creation){
+                role = settingsRes.rows[0].role_on_public_creation;
+            }
+            await runQuery({database: req.appName}, `INSERT INTO users.user(login, email, role, active) VALUES($1, $2, $3, true)`, [login, email, role]);
+            result = await runQuery({database: req.appName}, `SELECT * FROM users.user WHERE login = $1`, [login]);
+        }
+
+        const user = result.rows[0];
+        if(user) delete user.password;
+
+        await genSession(user, req, res);
+        res.json({ ok: true });
+    });
+
 
     router.post('/refresh', async (req, res) => {
         const oldToken = req.cookies?.[`jwt-user_${req.appName}-refresh`];
@@ -688,11 +827,15 @@ export const initPlugin = async ({ loadPluginData, runQuery }) => {
 
 
     router.post('/logout', async (req, res) => {
-        const rt = req.cookies?.refresh_token;
+        const rt = req.cookies?.[`jwt-user_${req.appName}-refresh`];
         if (rt) await revokeSession(req.appName, rt);
 
-        res.clearCookie(`jwt-user_${req.appName}-access`);
-        res.clearCookie(`jwt-user_${req.appName}-refresh`);
+        res.clearCookie(`jwt-user_${req.appName}-access`, {
+           domain: process.env.COOKIE_DOMAIN || ".test3.bakino.fr"
+        });
+        res.clearCookie(`jwt-user_${req.appName}-refresh`, {
+           domain: process.env.COOKIE_DOMAIN || ".test3.bakino.fr"
+        });
         res.json({ ok: true });
     });
 

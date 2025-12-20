@@ -1,7 +1,8 @@
 {
   "compilerOptions": {
+    "target": "es2017",
     "lib": [ "es2024", "dom" ],
-    "module": "es2022",
+    "module": "esnext",
     "strict": false,
     "allowJs": true,
     "checkJs": true,

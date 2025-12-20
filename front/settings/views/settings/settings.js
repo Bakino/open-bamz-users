@@ -13,10 +13,12 @@ view.loader = async ()=>{
     let message_templates = null;
     let permissions = [] ;
     let policies = [] ;
+    let authProviders = [] ;
     if(dbApi.db.users){
         settings = await dbApi.db.users.settings.searchFirst() ;
         roles = await dbApi.db.users.role.search({}, {orderBy: ['DISPLAY_ORDER_ASC']});
         users = await dbApi.db.users.user.search({}, {orderBy: ['LOGIN_ASC']}) ;
+        authProviders = await dbApi.db.users.auth_providers.search({}, {orderBy: ['CODE_ASC']}) ;
         try{
             
             const permissionsAllTables = await dbApi.db.users.mutations.role_table_list_permissions();
@@ -65,6 +67,7 @@ view.loader = async ()=>{
     return {
         logged,
         settings,
+        authProviders,
         roles,
         users,
         permissions,
@@ -203,6 +206,22 @@ view.addRole = async ()=>{
             })
         }
     })
+}
+
+view.addAuthProvider = async ()=>{
+    await dialogs.routeModal({ route: "/popup-auth-provider/" }) ;
+    await view.refresh() ;
+}
+
+view.editAuthProvider = async (authProvider)=>{
+    await dialogs.routeModal({ route: "/popup-auth-provider/"+authProvider.code }) ;
+    await view.refresh() ;
+}
+view.deleteAuthProvider = async (authProvider)=>{
+    if(await dialogs.confirm("Are you sure to delete this auth provider ?")){
+        await dbApi.db.users.auth_providers.deleteByCode(authProvider.code)
+        await view.refresh() ;
+    }
 }
 
 view.addUser = async ()=>{

@@ -359,5 +359,3 @@ declare class ViewZ {
      */
     router: ViewZRouter;
 }
-
-declare const view: ViewZ;
