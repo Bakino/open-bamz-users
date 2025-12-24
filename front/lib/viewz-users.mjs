@@ -10,7 +10,7 @@ export default {
     extends: {
         checkLogged: async function(loginRoute = "/login/:url"){
             try{
-                const refreshed = await usersApi.refreshToken() ;
+                const refreshed = await usersApi.refreshTokenIfNeeded() ;
                 if(!refreshed){
                     this.abortRender() ;
                     // @ts-ignore

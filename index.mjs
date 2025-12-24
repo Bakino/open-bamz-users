@@ -633,6 +633,9 @@ export const initPlugin = async ({ app, loadPluginData, runQuery }) => {
     async function revokeSession(appName, token) {
         await runQuery({database: appName},`UPDATE users.session SET revoked = true WHERE token = $1`, [token]);
     }
+    async function expireSession(appName, token, delay) {
+        await runQuery({database: appName},`UPDATE users.session SET expire_time = NOW() + INTERVAL '${delay} minutes' WHERE token = $1`, [token]);
+    }
 
     async function findSession(appName, token) {
         const result = await runQuery({database: appName}, `SELECT login, token, expire_time, revoked FROM users.session WHERE token = $1`, [token]);
@@ -693,6 +696,13 @@ export const initPlugin = async ({ app, loadPluginData, runQuery }) => {
             domain: process.env.COOKIE_DOMAIN || ".test3.bakino.fr",
             maxAge: refresh_token_ttl_minutes * 60 * 1000
         });
+
+        if(req.headers["x-cors-auth"]){
+            // usage in CORS context (for example a cordova app)
+            // in this case, return the cookie in header as cookie is not supported
+            res.setHeader(`x-cors-jwt-user_${req.appName}-access`, accessToken) ;
+            res.setHeader(`x-cors-jwt-user_${req.appName}-refresh`, refreshToken) ;
+        }
     }
 
     /**
@@ -703,11 +713,23 @@ export const initPlugin = async ({ app, loadPluginData, runQuery }) => {
      */
 
     const jwtMiddleware = async (req, res, next) => {
-        const jwtName = `user_${req.appName}` ;
-        const cookiePrefix = `jwt-${jwtName}-`
-        if(req.cookies && req.appName){
-            const cookieAccess = req.cookies[`${cookiePrefix}access`];
-            const cookieRefresh = req.cookies[`${cookiePrefix}refresh`];
+        if(req.appName){
+            debugger;
+            const jwtName = `user_${req.appName}` ;
+            const cookiePrefix = `jwt-${jwtName}-` ;
+
+            let cookieAccess = null;
+            let cookieRefresh = null;
+            if(req.cookies){
+                cookieAccess = req.cookies[`${cookiePrefix}access`];
+                cookieRefresh = req.cookies[`${cookiePrefix}refresh`];
+            }
+            if(!cookieAccess){
+                // usage in CORS context (for example a cordova app)
+                // in this case, return the cookie in header as cookie is not supported
+                cookieAccess = req.headers[`x-cors-${cookiePrefix}access`];
+                cookieRefresh = req.headers[`x-cors-${cookiePrefix}refresh`];
+            }
             if(cookieAccess && cookieRefresh){
                 try {
                     const decoded = verifyAccessToken(cookieAccess);
@@ -807,14 +829,51 @@ export const initPlugin = async ({ app, loadPluginData, runQuery }) => {
 
 
     router.post('/refresh', async (req, res) => {
-        const oldToken = req.cookies?.[`jwt-user_${req.appName}-refresh`];
+        let oldToken = req.cookies?.[`jwt-user_${req.appName}-refresh`];
+        if(!oldToken){
+            // usage in CORS context (for example a cordova app)
+            // in this case, return the cookie in header as cookie is not supported
+            oldToken = req.headers[`x-cors-jwt-user_${req.appName}-refresh`];
+        }
         if (!oldToken) return res.status(401).end();
 
         const entry = await findSession(req.appName, oldToken);
         if (!entry || entry.revoked || entry.expire_time < new Date()) {
             return res.status(401).end();
         }
-        await revokeSession(req.appName, oldToken);
+        // expire old session in 2 minute (let the time of other request running in the same time to finish)
+        await expireSession(req.appName, oldToken, 2); 
+
+        const user = await readUser(req.appName, entry.login);
+        if(!user){
+            return res.status(401).end();
+        }
+        await genSession(user, req, res)
+
+        res.json({ ok: true });
+    });
+    
+    router.post('/refresh-if-needed', async (req, res) => {
+        let oldToken = req.cookies?.[`jwt-user_${req.appName}-refresh`];
+        if(!oldToken){
+            // usage in CORS context (for example a cordova app)
+            // in this case, return the cookie in header as cookie is not supported
+            oldToken = req.headers[`x-cors-jwt-user_${req.appName}-refresh`];
+        }
+        if (!oldToken) return res.status(401).end();
+
+        const entry = await findSession(req.appName, oldToken);
+        if (!entry || entry.revoked || entry.expire_time < new Date()) {
+            return res.status(401).end();
+        }
+
+        // renew if less than 60 minutes left
+        if(entry.expire_time > new Date(Date.now() + 60 * 60 * 1000)){
+            return res.json({ ok: true });
+        }
+
+        // expire old session in 2 minute (let the time of other request running in the same time to finish)
+        await expireSession(req.appName, oldToken, 2); 
 
         const user = await readUser(req.appName, entry.login);
         if(!user){
@@ -827,7 +886,12 @@ export const initPlugin = async ({ app, loadPluginData, runQuery }) => {
 
 
     router.post('/logout', async (req, res) => {
-        const rt = req.cookies?.[`jwt-user_${req.appName}-refresh`];
+        let rt = req.cookies?.[`jwt-user_${req.appName}-refresh`];
+        if(!rt){
+            // usage in CORS context (for example a cordova app)
+            // in this case, return the cookie in header as cookie is not supported
+            rt = req.headers[`x-cors-jwt-user_${req.appName}-refresh`];
+        }
         if (rt) await revokeSession(req.appName, rt);
 
         res.clearCookie(`jwt-user_${req.appName}-access`, {
@@ -836,6 +900,12 @@ export const initPlugin = async ({ app, loadPluginData, runQuery }) => {
         res.clearCookie(`jwt-user_${req.appName}-refresh`, {
            domain: process.env.COOKIE_DOMAIN || ".test3.bakino.fr"
         });
+        if(req.headers["x-cors-auth"]){
+            // usage in CORS context (for example a cordova app)
+            // in this case, return the cookie in header as cookie is not supported
+            res.setHeader(`x-cors-jwt-user_${req.appName}-access`, "x") ;
+            res.setHeader(`x-cors-jwt-user_${req.appName}-refresh`, "x") ;
+        }
         res.json({ ok: true });
     });
 
@@ -863,6 +933,7 @@ export const initPlugin = async ({ app, loadPluginData, runQuery }) => {
         frontEndPublic: "lib",
         frontEndLib: "lib/users-lib.mjs",
         router: router,
+        cors: ["x-cors-jwt-user_:appName-access", "x-cors-jwt-user_:appName-refresh"],
         //menu entries
         menu: [
             {

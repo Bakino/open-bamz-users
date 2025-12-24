@@ -1,0 +1,2 @@
+
+declare const dbApi: any;

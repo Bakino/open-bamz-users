@@ -72,6 +72,13 @@ declare class UsersClient {
     refreshToken(): Promise<boolean>;
 
     /**
+     * Refresh the current user token if needed (expire in less than 1h).
+     * 
+     * @returns A promise that resolves to true if the token is valid, false otherwise.
+     */
+    refreshTokenIfNeeded(): Promise<boolean>;
+
+    /**
      * Logout the current user.
      */
     logoutUser(): void;

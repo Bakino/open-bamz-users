@@ -70,6 +70,19 @@ class UsersClient {
     }
 
     /**
+     * Refresh the current user token
+     * 
+     * @returns {Promise<boolean>} true if the token is valid, false otherwise
+     */
+    async refreshTokenIfNeeded() {
+        let response = await fetch("/open-bamz-users/refresh-if-needed", {
+            method: "POST",
+            credentials: "include"
+        });
+        return response.ok ;
+    }
+
+    /**
      * Logout the current user
      */
     async logoutUser() {
