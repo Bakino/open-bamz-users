@@ -25,6 +25,11 @@ declare interface UserData {
     active?: boolean;
 
     /**
+     * Lang of the user
+     */
+    lang?: string;
+
+    /**
      * The activation token of the user (given on creation if active_on_creation setting is false).
      */
     activation_token?: string;

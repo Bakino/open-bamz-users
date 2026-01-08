@@ -1745,6 +1745,7 @@ const currentUser = await usersApi.getCurrentUser() ;
                             const createdUser = await usersApi.createUser({ 
                                 login: view.data.create_login, 
                                 email: view.data.create_email, 
+                                lang: "fr-FR",
                                 password: view.data.create_password 
                             }) ;
                             

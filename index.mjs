@@ -119,12 +119,13 @@ LANGUAGE plv8 security definer`);
     await client.query(`CREATE TABLE IF NOT EXISTS users.user(
         login text PRIMARY KEY,
         email text UNIQUE,
+        lang text,
         role text REFERENCES users.role(role),
         password text,   
         active boolean
     )`);
 
-
+    await client.query(`ALTER TABLE users.user ADD COLUMN IF NOT EXISTS lang text`);
 
     await client.query(`CREATE TABLE IF NOT EXISTS users.session (
         _id uuid primary key DEFAULT gen_random_uuid(),
