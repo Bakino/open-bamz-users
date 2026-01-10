@@ -82,6 +82,24 @@ LANGUAGE plv8 security definer`);
               //custom role
               const currentDatabase = plv8.execute("SELECT current_database() as current_database", [])[0].current_database;
               plv8.execute(\`CREATE ROLE "\${currentDatabase}_\${NEW.role}" WITH NOLOGIN\`);
+
+              //give right to all default public functions
+              plv8.execute(\`GRANT USAGE ON SCHEMA users TO \${currentDatabase}_\${NEW.role}\`);
+              plv8.execute(\`GRANT EXECUTE ON FUNCTION users.user_authenticate TO \${currentDatabase}_\${NEW.role}\`);
+              plv8.execute(\`GRANT EXECUTE ON FUNCTION users.token_resend TO \${currentDatabase}_\${NEW.role}\`);
+              plv8.execute(\`GRANT EXECUTE ON FUNCTION users.user_activate_code TO \${currentDatabase}_\${NEW.role}\`);
+              plv8.execute(\`GRANT EXECUTE ON FUNCTION users.password_reset_request TO \${currentDatabase}_\${NEW.role}\`);
+              plv8.execute(\`GRANT EXECUTE ON FUNCTION users.password_reset_apply TO \${currentDatabase}_\${NEW.role}\`);
+              plv8.execute(\`GRANT EXECUTE ON FUNCTION users.user_activate TO \${currentDatabase}_\${NEW.role}\`);
+              plv8.execute(\`GRANT EXECUTE ON FUNCTION users.password_change TO \${currentDatabase}_\${NEW.role}\`);
+              plv8.execute(\`GRANT EXECUTE ON FUNCTION users.user_read() TO \${currentDatabase}_\${NEW.role}\`);
+              plv8.execute(\`GRANT EXECUTE ON FUNCTION users.user_create TO \${currentDatabase}_\${NEW.role}\`);
+              plv8.execute(\`GRANT EXECUTE ON FUNCTION users.update_user TO \${currentDatabase}_\${NEW.role}\`);
+              plv8.execute(\`GRANT EXECUTE ON FUNCTION users.public_auth_provider_settings TO \${currentDatabase}_\${NEW.role}\`);
+
+            
+              plv8.execute(\`GRANT USAGE ON SCHEMA openbamz TO \${currentDatabase}_\${NEW.role}\`);
+              plv8.execute(\`GRANT EXECUTE ON FUNCTION openbamz.list_schema_and_tables TO \${currentDatabase}_\${NEW.role}\`);
             }
             if(!NEW.display_order){
                 let max_order = plv8.execute("SELECT max(display_order) as max from users.role", [])[0].max;
@@ -358,13 +376,13 @@ LANGUAGE plv8 security definer`);
     //function to change password
     await client.query(`CREATE OR REPLACE FUNCTION users.password_change(old_password text, new_password text) RETURNS boolean AS $$
             const result = plv8.execute(\`SELECT * FROM users.user WHERE 
-                login = current_setting('jwt.user_'||current_database()||'.login') AND password = crypt($1, password) AND active = true\`, [old_password]);
+                login = current_setting('jwt.user_'||current_database()||'.login', true) AND password = crypt($1, password) AND active = true\`, [old_password]);
 
             if(result.length === 0){
                 return false;
             }
 
-            plv8.execute(\`UPDATE users.user SET password = $1 WHERE login = current_setting('jwt.user_'||current_database()||'.login')\`, [new_password]);
+            plv8.execute(\`UPDATE users.user SET password = $1 WHERE login = current_setting('jwt.user_'||current_database()||'.login', true)\`, [new_password]);
             return true;
         $$
     LANGUAGE plv8 security definer`);
@@ -372,7 +390,7 @@ LANGUAGE plv8 security definer`);
     //function to update data
     await client.query(`CREATE OR REPLACE FUNCTION users.update_user(user_data JSON) RETURNS JSON AS $$
             const result = plv8.execute(\`SELECT * FROM users.user WHERE 
-                login = current_setting('jwt.user_'||current_database()||'.login') AND active = true\`, []);
+                login = current_setting('jwt.user_'||current_database()||'.login', true) AND active = true\`, []);
 
             if(result.length === 0){
                 return false;
@@ -385,7 +403,7 @@ LANGUAGE plv8 security definer`);
 
             const keys = Object.keys(user_data); 
             const updateResult = plv8.execute(\`UPDATE users.user SET \${keys.map((k, i)=>'"'+k+'" = $'+(i+1)).join(",")}
-                WHERE login = current_setting('jwt.user_'||current_database()||'.login') RETURNING *\`, keys.map((k)=>user_data[k]));
+                WHERE login = current_setting('jwt.user_'||current_database()||'.login', true) RETURNING *\`, keys.map((k)=>user_data[k]));
 
             delete updateResult[0].password;
 
@@ -395,9 +413,11 @@ LANGUAGE plv8 security definer`);
 
     //function to read user
     await client.query(`CREATE OR REPLACE FUNCTION users.user_read() RETURNS users.user AS $$
-            const user = plv8.execute(\`SELECT * FROM users.user WHERE login = current_setting('jwt.user_'||current_database()||'.login')\`)[0];
-            user.password = null;
-            user.role = null;
+            const user = plv8.execute(\`SELECT * FROM users.user WHERE login = current_setting('jwt.user_'||current_database()||'.login', true)\`)[0];
+            if(user){
+                user.password = null;
+                user.role = null;
+            }
             return user;
         $$
     LANGUAGE plv8 security definer`);
@@ -604,21 +624,32 @@ LANGUAGE plv8 security definer`);
     //console.log(`GRANT USAGE ON SCHEMA users TO anonymous`);
     //console.log(`GRANT EXECUTE ON FUNCTION users.user_authenticate TO anonymous`);
     
-    for(let role of ["anonymous",`${options.database}_readonly`,`${options.database}_user`,`${options.database}_admin`]){
+    const customRoles = await client.query(`SELECT "role" FROM users.role WHERE "role" NOT IN ('anonymous','readonly','user','admin')`) ;
+
+    for(let role of ["anonymous",`${options.database}_readonly`,
+            `${options.database}_user`,`${options.database}_admin`].concat(customRoles.rows.map(r=>`${options.database}_${r.role}`))){
+        //give access to public functions to all roles (standard and custome)
+        console.log(`GRANT USAGE ON SCHEMA users TO ${role}`);
         await client.query(`GRANT USAGE ON SCHEMA users TO ${role}`);
         await client.query(`GRANT EXECUTE ON FUNCTION users.user_authenticate TO ${role}`);
-        // await client.query(`GRANT EXECUTE ON FUNCTION users.user_refresh TO ${role}`);
         await client.query(`GRANT EXECUTE ON FUNCTION users.token_resend TO ${role}`);
         await client.query(`GRANT EXECUTE ON FUNCTION users.user_activate_code TO ${role}`);
         await client.query(`GRANT EXECUTE ON FUNCTION users.password_reset_request TO ${role}`);
         await client.query(`GRANT EXECUTE ON FUNCTION users.password_reset_apply TO ${role}`);
         await client.query(`GRANT EXECUTE ON FUNCTION users.user_activate TO ${role}`);
         await client.query(`GRANT EXECUTE ON FUNCTION users.password_change TO ${role}`);
-        await client.query(`GRANT EXECUTE ON FUNCTION users.user_read TO ${role}`);
+        await client.query(`GRANT EXECUTE ON FUNCTION users.user_read() TO ${role}`);
         await client.query(`GRANT EXECUTE ON FUNCTION users.user_create TO ${role}`);
         await client.query(`GRANT EXECUTE ON FUNCTION users.update_user TO ${role}`);
         await client.query(`GRANT EXECUTE ON FUNCTION users.public_auth_provider_settings TO ${role}`);
     }
+
+    // for custom role, add access to same base right as anonymous
+    for(let role of customRoles.rows.map(r=>`${options.database}_${r.role}`)){
+        await client.query(`GRANT USAGE ON SCHEMA openbamz TO ${role}`);
+        await client.query(`GRANT EXECUTE ON FUNCTION openbamz.list_schema_and_tables TO ${role}`);
+    }
+
     for(let role of [`${options.database}_admin`]){
         await client.query(`GRANT EXECUTE ON FUNCTION users.role_table_list_permissions TO ${role}`);
         await client.query(`GRANT EXECUTE ON FUNCTION users.role_table_set_permissions TO ${role}`);
@@ -809,6 +840,13 @@ export const initPlugin = async ({ app, loadPluginData, runQuery }) => {
 
     router.post('/login', express.json(), async (req, res) => {
         const { login, password } = req.body;
+
+        if(!login){ 
+            return res.status(400).json({ error: 'Login is required' });
+        }
+        if(password == null){
+            return res.status(400).json({ error: 'Password is required' });
+        }
 
         const user = await authenticateUser(req.appName, login, password);
         if (!user) return res.status(401).json({ error: 'Invalid credentials' });
