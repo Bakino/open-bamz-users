@@ -27,6 +27,24 @@ class UsersClient {
     async createUser(user) {
         return await this.graphqlClient.mutations.users_user_create({ input: {user_data: user}}) ;
     }
+
+    /**
+     * Resent the activation message
+     * 
+     * @param {string} login The login of the user
+     */
+    async resendActivationMessage(login) {
+        return await this.graphqlClient.mutations.users_token_resend({ input: {login_or_email: login, type:  "activation"}}) ;
+    }
+
+    /**
+     * Resent the password reset message
+     * 
+     * @param {string} email The email of the user
+     */
+    async resendResetPassword(email) {
+        return await this.graphqlClient.mutations.users_token_resend({ input: {login_or_email: email, type:  "password_reset"}}) ;
+    }
    
    
     /**
@@ -201,7 +219,7 @@ class UsersClient {
      * @param {HTMLElement|string} elementOrId The element or its id where to load the button
      * @param {object} options Options for the button (depends on provider)
      */
-    async loadProviderLoginButton(code, elementOrId, options = {}) {
+    async loadProviderLoginButton(code, elementOrId, options = {}, onSuccess = null, onError = null) {
         let settings = await this.publicAuthProviderSettings(code) ;
         if(!settings){
             throw new Error("Auth provider not found") ;
@@ -215,13 +233,22 @@ class UsersClient {
             window.google.accounts.id.initialize({ //https://developers.google.com/identity/gsi/web/reference/js-reference
                 // @ts-ignore
                 client_id: settings.provider_settings.client_id,
-                callback: (response)=>{
-                    fetch('/open-bamz-users/auth/provider', {
+                callback: async (response)=>{
+                    const r = await fetch('/open-bamz-users/auth/provider', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         credentials: 'include',
                         body: JSON.stringify({ id_token: response.credential, provider: code })
-                    }).then(r => r.json()).then(console.log).catch(console.error);
+                    }) ;
+                    if(r.ok){
+                        if(onSuccess){
+                            await onSuccess((await r.json()).user) ;
+                        }
+                    }else{
+                        if(options.onError){
+                            await onError(await r.text()) ;
+                        }
+                    }
                 },
             });
             if(typeof elementOrId === "string"){

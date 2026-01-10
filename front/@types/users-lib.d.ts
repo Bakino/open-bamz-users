@@ -60,6 +60,22 @@ declare class UsersClient {
      */
     createUser(user: UserData): Promise<UserData>;
 
+
+    /**
+     * Resent the activation message
+     * 
+     * @param login - The login of the user
+     */
+    resendActivationMessage(login: string): Promise<void>;
+
+    /**
+     * Resent the reset password message
+     * 
+     * @param email - The email of the user
+     */
+    resendResetPassword(email: string): Promise<void>;
+
+
     /**
      * Authenticate a user.
      * 
@@ -173,8 +189,10 @@ declare class UsersClient {
      * @param code - The code of the provider
      * @param elementOrId - The element or its id where to load the button
      * @param options - Options for the button (depends on provider)
+     * @param onSuccess - Called on success
+     * @param onError - Called on error
      */
-    loadProviderLoginButton(code: string, elementOrId: HTMLElement | string, options?: object): Promise<void>;
+    loadProviderLoginButton(code: string, elementOrId: HTMLElement | string, options?: object, onSuccess?: (user: any) => void, onError?: (message: any) => void): Promise<void>;
 
 
 }

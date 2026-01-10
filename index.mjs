@@ -119,12 +119,14 @@ LANGUAGE plv8 security definer`);
     await client.query(`CREATE TABLE IF NOT EXISTS users.user(
         login text PRIMARY KEY,
         email text UNIQUE,
+        name text,
         lang text,
         role text REFERENCES users.role(role),
         password text,   
         active boolean
     )`);
 
+    await client.query(`ALTER TABLE users.user ADD COLUMN IF NOT EXISTS name text`);
     await client.query(`ALTER TABLE users.user ADD COLUMN IF NOT EXISTS lang text`);
 
     await client.query(`CREATE TABLE IF NOT EXISTS users.session (
@@ -148,13 +150,27 @@ LANGUAGE plv8 security definer`);
         token text,
         login text REFERENCES users.user(login) ON DELETE CASCADE,
         expire timestamp without time zone,
-        used_time timestamp without time zone
+        used_time timestamp without time zone,
+        resend boolean
     )`);
+
+    await client.query(`ALTER TABLE users.user_token ADD COLUMN IF NOT EXISTS resend boolean`) ;
 
 
      // Create trigger to send token message
      await client.query(`CREATE OR REPLACE FUNCTION users.token_message_trigger()
         RETURNS trigger AS $$
+
+            if(OLD){
+                if(!NEW.resend){
+                    // update but not a resend
+                    return NEW;
+                }
+                if(OLD.expire < new Date()){
+                    // resend but token is expired
+                    throw "TOKEN_EXPIRED" ;
+                }
+            }
 
             const settings = plv8.execute("SELECT * FROM users.settings")[0];
             if(NEW.type === 'activation' && !settings.message_template_activation){
@@ -177,13 +193,47 @@ LANGUAGE plv8 security definer`);
             plv8.execute("SELECT messages.create_from_template($1, $2)", 
                 [templateCode, {user, token: NEW.token, type: NEW.type}]);
             
+            NEW.resend = false;
             return NEW;
         $$ LANGUAGE plv8 security definer`);
 
     await client.query(`CREATE OR REPLACE TRIGGER user_token_message_insert
-        AFTER INSERT ON users.user_token
+        BEFORE INSERT OR UPDATE ON users.user_token
         FOR EACH ROW
         EXECUTE FUNCTION users.token_message_trigger()`);
+
+
+    await client.query(`DROP FUNCTION IF EXISTS users.token_resend(login text, type text)`);
+    await client.query(`DROP FUNCTION IF EXISTS users.token_resend(loginoremail text, type text)`);
+
+    await client.query(`CREATE OR REPLACE FUNCTION users.token_resend(login_or_email text, type text)
+RETURNS JSON AS $$
+
+    let login = login_or_email;
+    if(type === 'password_reset'){
+        // it is the email that is given, search for the user
+        const result = plv8.execute(\`SELECT * FROM users.user WHERE 
+            email = $1 AND active = true\`, [login_or_email]);
+
+        if(result.length === 0){
+            throw "UNKNOWN_EMAIL";
+        }
+        login = result[0].login;
+    }
+  
+    const result = plv8.execute("SELECT * FROM users.user_token WHERE login = $1 AND type = $2 ORDER BY expire DESC", [login, type]);
+    if(result.length === 0){
+        throw "UNKNOWN_TOKEN";
+    }else{
+        const token = result[0] ;
+        if(token.expire < new Date()){
+            throw "TOKEN_EXPIRED";
+        }
+        plv8.execute("UPDATE users.user_token SET resend = true WHERE _id = $1", [token._id]);
+        return { ok: true };
+    }
+$$
+LANGUAGE plv8 security definer`);
 
 
     await client.query(`CREATE OR REPLACE FUNCTION users.crypt_password_trigger()
@@ -558,6 +608,8 @@ LANGUAGE plv8 security definer`);
         await client.query(`GRANT USAGE ON SCHEMA users TO ${role}`);
         await client.query(`GRANT EXECUTE ON FUNCTION users.user_authenticate TO ${role}`);
         // await client.query(`GRANT EXECUTE ON FUNCTION users.user_refresh TO ${role}`);
+        await client.query(`GRANT EXECUTE ON FUNCTION users.token_resend TO ${role}`);
+        await client.query(`GRANT EXECUTE ON FUNCTION users.user_activate_code TO ${role}`);
         await client.query(`GRANT EXECUTE ON FUNCTION users.password_reset_request TO ${role}`);
         await client.query(`GRANT EXECUTE ON FUNCTION users.password_reset_apply TO ${role}`);
         await client.query(`GRANT EXECUTE ON FUNCTION users.user_activate TO ${role}`);
@@ -825,7 +877,7 @@ export const initPlugin = async ({ app, loadPluginData, runQuery }) => {
         if(user) delete user.password;
 
         await genSession(user, req, res);
-        res.json({ ok: true });
+        res.json({ ok: true, user });
     });
 
 
