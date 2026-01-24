@@ -798,7 +798,6 @@ export const initPlugin = async ({ app, loadPluginData, runQuery }) => {
 
     const jwtMiddleware = async (req, res, next) => {
         if(req.appName){
-            debugger;
             const jwtName = `user_${req.appName}` ;
             const cookiePrefix = `jwt-${jwtName}-` ;
 
@@ -875,17 +874,34 @@ export const initPlugin = async ({ app, loadPluginData, runQuery }) => {
         let login = null;
         let email = null;
         if(providerData.provider_type === 'google'){
-            const { id_token } = req.body;
-            if(!id_token) return res.status(400).json({ error: 'id_token required' });
-            try{
-                const ticket = await getGoogleClient(providerData.provider_settings.client_id).verifyIdToken({ idToken: id_token, audience: providerData.client_id });
-                const payload = ticket.getPayload();
-                email = payload.email;
-                const sub = payload.sub;
-                login = `google_${sub}`;
-            }catch(err){
-                console.error('Google auth error', err);
-                res.status(401).json({ error: 'invalid_token' });
+            const { id_token, access_token } = req.body;
+            if(!id_token && !access_token) return res.status(400).json({ error: 'id_token or access_token required' });
+            if(id_token){
+                try{
+                    const ticket = await getGoogleClient(providerData.provider_settings.client_id).verifyIdToken({ idToken: id_token, audience: providerData.provider_settings.client_id });
+                    const payload = ticket.getPayload();
+                    email = payload.email;
+                    const sub = payload.sub;
+                    login = `google_${sub}`;
+                }catch(err){
+                    console.error('Google auth error', err);
+                    return res.status(401).json({ error: 'invalid_token' });
+                }
+            }else{
+                try{
+                    const tokenInfo = await getGoogleClient(providerData.provider_settings.client_id).getTokenInfo(access_token);
+                    console.log("tokenInfo", tokenInfo) ;
+                    if (tokenInfo.aud !== providerData.provider_settings.client_id) {
+                        throw new Error('Token was not issued for this application');
+                    }
+                    const payload = tokenInfo;
+                    email = payload.email;
+                    const sub = payload.sub;
+                    login = `google_${sub}`;
+                }catch(err){
+                    console.error('Google auth error', err);
+                    return res.status(401).json({ error: 'invalid_token' });
+                }
             }
         }else{
             return res.status(400).json({ error: 'unsupported_provider' });

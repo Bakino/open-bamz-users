@@ -261,6 +261,87 @@ class UsersClient {
             } ;
             // @ts-ignore
             window.google.accounts.id.renderButton(elementOrId,buttonOptions);
+        }else{
+            throw "Unknown auth provider "+settings.provider_type
+        }
+    }
+
+
+    async loadCustomProviderLoginButton(code, elementOrId, onSuccess = null, onError = null) {
+        let settings = await this.publicAuthProviderSettings(code) ;
+        if(!settings){
+            throw new Error("Auth provider not found") ;
+        }
+        // @ts-ignore
+        if(settings.provider_type === "google"){
+            await loadGsiScript() ;
+            // @ts-ignore
+            if (!window.google) return console.warn('Google library not loaded yet');
+            let element = elementOrId ;
+            if(typeof elementOrId === "string"){
+                element = document.getElementById(elementOrId) ;
+            }
+            if(!element){
+                throw "Missing login button element "+elementOrId ;
+            }
+            // @ts-ignore
+            const tokenClient = window.google.accounts.oauth2.initTokenClient({ //https://developers.google.com/identity/oauth2/web/reference/js-reference
+                client_id: settings.provider_settings.client_id,
+                scope: 'https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email',
+                callback: async (response) => {
+                    // called when receive response from google
+                    if (response.error !== undefined) {
+                        onError(response.error_description, response);
+                        return;
+                    }
+                    
+                    const accessToken = response.access_token;
+                    
+                    try {
+                        const response = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+                            headers: {
+                                'Authorization': `Bearer ${accessToken}`
+                            }
+                        });
+                        
+                        if (!response.ok) {
+                            throw (await response.text())
+                        }
+                        
+                        const userInfo = await response.json();
+
+
+                        const r = await fetch('/open-bamz-users/auth/provider', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            credentials: 'include',
+                            body: JSON.stringify({ access_token: accessToken, provider: code })
+                        }) ;
+                        if(r.ok){
+                            if(onSuccess){
+                                const successData = (await r.json()).user ;
+                                successData.userInfo = userInfo;
+                                await onSuccess(successData) ;
+                            }
+                        }else{
+                            if(onError){
+                                await onError(await r.text()) ;
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Unexpected error while authenticate with google', error);
+                        throw error;
+                    }
+                    
+                },
+            });
+
+            element.addEventListener('click', () => {
+                // requestion tocket
+                tokenClient.requestAccessToken();
+            });
+        }else{
+            throw "Unknown auth provider "+settings.provider_type
         }
     }
 }

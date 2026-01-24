@@ -194,5 +194,14 @@ declare class UsersClient {
      */
     loadProviderLoginButton(code: string, elementOrId: HTMLElement | string, options?: object, onSuccess?: (user: any) => void, onError?: (message: any) => void): Promise<void>;
 
+    /**
+     * Use a custom button to login with a provider
+     * @param code - The code of the provider
+     * @param elementOrId - The element or its id where to load the button
+     * @param onSuccess - Called on success
+     * @param onError - Called on error
+     */
+    loadCustomProviderLoginButton(code: string, elementOrId: HTMLElement | string, options?: object, onSuccess?: (user: any) => void, onError?: (message: any) => void): Promise<void>;
+
 
 }

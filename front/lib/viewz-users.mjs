@@ -8,6 +8,7 @@ export default {
         usersApi: usersApi
     },
     extends: {
+        usersApi: usersApi,
         checkLogged: async function(loginRoute = "/login/:url"){
             try{
                 const refreshed = await usersApi.refreshTokenIfNeeded() ;
