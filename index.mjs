@@ -747,11 +747,11 @@ export const initPlugin = async ({ app, loadPluginData, runQuery }) => {
         let refresh_token_ttl_minutes = 3 * 24 * 60 // default 3 days
         let resultSettings = await runQuery({database: req.appName}, `SELECT * FROM users.settings`, []) ;
         if(resultSettings.rows.length>0){
-            if(resultSettings.access_token_ttl_minutes){
-                access_token_ttl_minutes = resultSettings.access_token_ttl_minutes ;
+            if(resultSettings.rows[0].access_token_ttl_minutes){
+                access_token_ttl_minutes = resultSettings.rows[0].access_token_ttl_minutes ;
             }
-            if(resultSettings.refresh_token_ttl_minutes){
-                refresh_token_ttl_minutes = resultSettings.refresh_token_ttl_minutes ;
+            if(resultSettings.rows[0].refresh_token_ttl_minutes){
+                refresh_token_ttl_minutes = resultSettings.rows[0].refresh_token_ttl_minutes ;
             }
         }
 
@@ -961,6 +961,7 @@ export const initPlugin = async ({ app, loadPluginData, runQuery }) => {
     });
     
     router.post('/refresh-if-needed', async (req, res) => {
+        debugger ;
         let oldToken = req.cookies?.[`jwt-user_${req.appName}-refresh`];
         if(!oldToken){
             // usage in CORS context (for example a cordova app)
