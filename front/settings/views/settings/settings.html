@@ -524,6 +524,36 @@
                 </div>
               </div>
               <div
+                id="ii9d3n-2"
+                z-show-if="settings.public_creation &amp;&amp; !settings.active_on_creation"
+                class="d-flex align-items-center mb-3"
+              >
+                <div id="iwpabi-2" class="me-1">
+                  <label
+                    for="message_template_email_change"
+                    id="imxajj-2"
+                    class="form-check-label"
+                  >
+                    Template for email change
+                  </label>
+                </div>
+                <div id="irg2oh-2" class="flex-grow-1">
+                  <select
+                    z-bind="settings.message_template_email_change"
+                    id="message_template_email_change"
+                    class="form-control"
+                  >
+                    <option></option>
+                    <option
+                      value="${template.code}"
+                      z-bind="template of message_templates"
+                    >
+                      [${template.code}] ${template.name}
+                    </option>
+                  </select>
+                </div>
+              </div>
+              <div
                 id="ii9d3n-3"
                 z-show-if="settings.public_creation &amp;&amp; settings.allow_reset_password"
                 class="d-flex align-items-center mb-3"

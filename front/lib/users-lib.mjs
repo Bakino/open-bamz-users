@@ -45,6 +45,15 @@ class UsersClient {
     async resendResetPassword(email) {
         return await this.graphqlClient.mutations.users_token_resend({ input: {login_or_email: email, type:  "password_reset"}}) ;
     }
+
+    /**
+     * Resent the change email message
+     * 
+     * @param {string} login The login of the user
+     */
+    async resendChangeEmail(login) {
+        return await this.graphqlClient.mutations.users_token_resend({ input: {login_or_email: email, type:  "email_change"}}) ;
+    }
    
    
     /**
@@ -172,6 +181,48 @@ class UsersClient {
         let result = await this.graphqlClient.mutations.users_user_activate_code({input: {login, token: activationCode}})
         return result;
     }
+
+    /**
+     * Request an email change with a confirmation link or code send to this email
+     * 
+     * The change will be applied once the user validate by link or code
+     * 
+     * 
+     * @param {string} email The new email of the user
+     * @returns {Promise<boolean>} True if the request succeed
+     */
+    async requestChangeEmail(email){
+        let result = await this.graphqlClient.mutations.users_change_email_request({input: {email}})
+        return result;
+    }
+
+    /**
+     * Apply email change to the user by token 
+     * 
+     * The token has been send to the new email using requestChangeEmail
+     * 
+     * @param {string} token The reset token (sent to user using requestChangeEmail)
+     * @returns {Promise<boolean>} true if the email is changed, false otherwise
+     */
+    async changeEmail(token){
+        let result = await this.graphqlClient.mutations.users_user_change_email({input: {token}})
+        return result;
+    }
+
+    /**
+     * Apply email change to the user by code 
+     * 
+     * The code has been send to the new email using requestChangeEmail
+     * 
+     * @param {string} login The login of the user
+     * @param {string} token The validation code (sent to user using requestChangeEmail)
+     * @returns {Promise<boolean>} true if the email is changed, false otherwise
+     */
+    async changeEmailByCode(login, token){
+        let result = await this.graphqlClient.mutations.users_user_change_email_code({input: {login, token}})
+        return result;
+    }
+
 
     /**
      * Request a password reset from the user email

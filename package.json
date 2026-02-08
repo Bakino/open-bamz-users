@@ -1,6 +1,6 @@
 {
   "name": "open-bamz-users",
-  "version": "1.0.0",
+  "version": "1.0.6",
   "main": "index.mjs",
   "type": "module",
   "keywords": [],

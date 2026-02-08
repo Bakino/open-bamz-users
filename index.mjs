@@ -24,6 +24,7 @@ export const prepareDatabase = async ({options, client, grantSchemaAccess}) => {
         allow_reset_password boolean DEFAULT false, -- if true, user can reset password from email
         message_template_activation text,          -- the message template to use for activation
         message_template_password_reset text,       -- the message template to use for password reset
+        message_template_email_change text,        -- the message template to use for email change
         access_token_ttl_minutes integer,          -- access token time to live in minutes
         refresh_token_ttl_minutes integer,         -- refresh token time to live in minutes
         activation_token_ttl_minutes integer,      -- activation token time to live in minutes
@@ -31,6 +32,8 @@ export const prepareDatabase = async ({options, client, grantSchemaAccess}) => {
         activation_token_length integer,           -- activation token length when using code type
         reset_password_token_ttl_minutes integer   -- reset password token time to live in minutes
     )`);
+
+    
 
 
     await client.query(`INSERT INTO users.settings(id, public_creation, role_on_public_creation, active_on_creation, allow_reset_password)
@@ -88,6 +91,9 @@ LANGUAGE plv8 security definer`);
               plv8.execute(\`GRANT EXECUTE ON FUNCTION users.user_authenticate TO \${currentDatabase}_\${NEW.role}\`);
               plv8.execute(\`GRANT EXECUTE ON FUNCTION users.token_resend TO \${currentDatabase}_\${NEW.role}\`);
               plv8.execute(\`GRANT EXECUTE ON FUNCTION users.user_activate_code TO \${currentDatabase}_\${NEW.role}\`);
+              plv8.execute(\`GRANT EXECUTE ON FUNCTION users.change_email_request TO \${currentDatabase}_\${NEW.role}\`);
+              plv8.execute(\`GRANT EXECUTE ON FUNCTION users.user_change_email_code TO \${currentDatabase}_\${NEW.role}\`);
+              plv8.execute(\`GRANT EXECUTE ON FUNCTION users.user_change_email TO \${currentDatabase}_\${NEW.role}\`);
               plv8.execute(\`GRANT EXECUTE ON FUNCTION users.password_reset_request TO \${currentDatabase}_\${NEW.role}\`);
               plv8.execute(\`GRANT EXECUTE ON FUNCTION users.password_reset_apply TO \${currentDatabase}_\${NEW.role}\`);
               plv8.execute(\`GRANT EXECUTE ON FUNCTION users.user_activate TO \${currentDatabase}_\${NEW.role}\`);
@@ -149,7 +155,7 @@ LANGUAGE plv8 security definer`);
 
     await client.query(`CREATE TABLE IF NOT EXISTS users.session (
         _id uuid primary key DEFAULT gen_random_uuid(),
-        login text REFERENCES users.user(login) ON DELETE CASCADE,
+        login text REFERENCES users.user(login) ON DELETE CASCADE ON UPDATE CASCADE,
         create_time timestamp without time zone DEFAULT now(),
         token varchar(1024) UNIQUE,
         revoked boolean DEFAULT false,
@@ -157,7 +163,7 @@ LANGUAGE plv8 security definer`);
     )`);
 
     await client.query(`DO $$ BEGIN
-            CREATE TYPE users.token_type AS ENUM ('activation', 'password_reset') ;
+            CREATE TYPE users.token_type AS ENUM ('activation', 'password_reset', 'email_change') ;
         EXCEPTION
             WHEN duplicate_object THEN null;
         END $$;`);
@@ -166,7 +172,8 @@ LANGUAGE plv8 security definer`);
         create_time timestamp without time zone DEFAULT now(),
         type users.token_type,
         token text,
-        login text REFERENCES users.user(login) ON DELETE CASCADE,
+        new_email text,
+        login text REFERENCES users.user(login) ON DELETE CASCADE ON UPDATE CASCADE,
         expire timestamp without time zone,
         used_time timestamp without time zone,
         resend boolean
@@ -198,12 +205,18 @@ LANGUAGE plv8 security definer`);
             if(NEW.type === 'password_reset' && !settings.message_template_password_reset){
                 throw new Error("Password reset message template is not set in settings");
             }
+
+            if(NEW.type === 'email_change' && !settings.message_template_email_change){
+                throw new Error("Email change message template is not set in settings");
+            }
             
             let templateCode ;
             if(NEW.type === 'activation'){
                 templateCode = settings.message_template_activation;
             }else if(NEW.type === 'password_reset'){
                 templateCode = settings.message_template_password_reset;
+            }else if(NEW.type === 'email_change'){
+                templateCode = settings.message_template_email_change;
             }
 
             const user = plv8.execute("SELECT * FROM users.user WHERE login = $1", [NEW.login])[0] ;
@@ -323,6 +336,100 @@ LANGUAGE plv8 security definer`);
             }
 
             plv8.execute(\`UPDATE users.user SET active = true WHERE login = $1\`, [result[0].login]);
+
+            plv8.execute(\`UPDATE users.user_token SET used_time = now() WHERE _id = $1\`, [result._id]);
+            return true;
+        $$
+    LANGUAGE plv8 security definer`);
+
+    await client.query(`CREATE OR REPLACE FUNCTION users.change_email_request(email text) RETURNS boolean AS $$
+            const settings = plv8.execute("SELECT * FROM users.settings")[0];
+
+            const result = plv8.execute(\`SELECT * FROM users.user WHERE 
+                login = current_setting('jwt.user_'||current_database()||'.login', true) AND active = true\`, []);
+
+            if(result.length === 0){
+                return false;
+            }
+
+            const currentUser = result[0] ;
+                
+            let tokenGen = ''
+            if(settings.activation_token_type === "code"){
+                const tokenLength = settings.activation_token_length || 6 ;
+                const characters = '0123456789';
+                for ( let i = 0; i < tokenLength; i++ ) {
+                    tokenGen += characters.charAt(Math.floor(Math.random() * characters.length));
+                }
+                tokenGen = \`'\${tokenGen}'\` ;
+            }else{
+                tokenGen = plv8.execute("SELECT gen_random_uuid() as token", [])[0].token ;
+            }
+            const expireInMinutes = settings.activation_token_ttl_minutes || 180 ; // default 3 hours
+            const resultInsert = plv8.execute(\`INSERT INTO users.user_token(type, token, login, expire, new_email) 
+                VALUES ('email_change', \${tokenGen}, $1, now() + interval '\${expireInMinutes} minute', $2) RETURNING token\`, [currentUser.login, email]);
+
+            return true;
+        $$
+    LANGUAGE plv8 security definer`);
+
+    await client.query(`CREATE OR REPLACE FUNCTION users.user_change_email_code(login text, token text) RETURNS boolean AS $$
+            const settings = plv8.execute("SELECT * FROM users.settings")[0];
+            
+            if(settings.activation_token_type !== "code"){ return false; }
+
+            const result = plv8.execute(\`SELECT * FROM users.user_token WHERE 
+                token = $1 AND login = $2 AND type = 'email_change' AND (expire is NULL or expire > now()) AND used_time IS NULL\`, [token, login]);
+
+            if(result.length === 0){
+                return false;
+            }
+
+            const currentUser = plv8.execute("SELECT * FROM users.user  WHERE login = $1", [result[0].login])[0] ;
+
+            if(!currentUser){
+                throw "CANT_FIND_USER" ;
+            }
+
+            if(currentUser.email === currentUser.login){
+                // the login is also the email, change the login too
+                plv8.execute(\`UPDATE users.user SET email = $1, login = $1 WHERE login = $2\`, [result[0].new_email, result[0].login]);
+            }else{
+                // the login is not the email, change only the email
+                plv8.execute(\`UPDATE users.user SET email = $1 WHERE login = $2\`, [result[0].new_email, result[0].login]);
+            }
+
+
+            plv8.execute(\`UPDATE users.user_token SET used_time = now() WHERE _id = $1\`, [result._id]);
+            return true;
+        $$
+    LANGUAGE plv8 security definer`);
+
+     await client.query(`CREATE OR REPLACE FUNCTION users.user_change_email(token text) RETURNS boolean AS $$
+
+            const settings = plv8.execute("SELECT * FROM users.settings")[0];
+            if(settings.activation_token_type === "code"){ return false; }
+
+            const result = plv8.execute(\`SELECT * FROM users.user_token WHERE 
+                token = $1 AND type = 'email_change' AND (expire is NULL or expire > now()) AND used_time IS NULL\`, [token]);
+
+            if(result.length === 0){
+                return false;
+            }
+            
+            const currentUser = plv8.execute("SELECT * FROM users.user  WHERE login = $1", [result[0].login])[0] ;
+
+            if(!currentUser){
+                throw "CANT_FIND_USER" ;
+            }
+
+            if(currentUser.email === currentUser.login){
+                // the login is also the email, change the login too
+                plv8.execute(\`UPDATE users.user SET email = $1, login = $1 WHERE login = $2\`, [result[0].new_email, result[0].login]);
+            }else{
+                // the login is not the email, change only the email
+                plv8.execute(\`UPDATE users.user SET email = $1 WHERE login = $2\`, [result[0].new_email, result[0].login]);
+            }
 
             plv8.execute(\`UPDATE users.user_token SET used_time = now() WHERE token = $1\`, [token]);
             return true;
@@ -471,6 +578,8 @@ LANGUAGE plv8 security definer`);
                         tokenGen += characters.charAt(Math.floor(Math.random() * characters.length));
                     }
                     tokenGen = \`'\${tokenGen}'\` ;
+                }else{
+                    tokenGen = plv8.execute("SELECT gen_random_uuid() as token", [])[0].token ;
                 }
                 const expireInMinutes = settings.activation_token_ttl_minutes || 180 ; // default 3 hours
                 const resultInsert = plv8.execute(\`INSERT INTO users.user_token(type, token, login, expire) 
@@ -634,6 +743,9 @@ LANGUAGE plv8 security definer`);
         await client.query(`GRANT EXECUTE ON FUNCTION users.user_authenticate TO ${role}`);
         await client.query(`GRANT EXECUTE ON FUNCTION users.token_resend TO ${role}`);
         await client.query(`GRANT EXECUTE ON FUNCTION users.user_activate_code TO ${role}`);
+        await client.query(`GRANT EXECUTE ON FUNCTION users.change_email_request TO ${role}`);
+        await client.query(`GRANT EXECUTE ON FUNCTION users.user_change_email_code TO ${role}`);
+        await client.query(`GRANT EXECUTE ON FUNCTION users.user_change_email TO ${role}`);
         await client.query(`GRANT EXECUTE ON FUNCTION users.password_reset_request TO ${role}`);
         await client.query(`GRANT EXECUTE ON FUNCTION users.password_reset_apply TO ${role}`);
         await client.query(`GRANT EXECUTE ON FUNCTION users.user_activate TO ${role}`);
@@ -824,6 +936,8 @@ export const initPlugin = async ({ app, loadPluginData, runQuery }) => {
 
                     if(!req.jwt) req.jwt = {};
                     req.jwt[jwtName] = decoded;
+                    // set login from session because, it can as been modified while the session is still valid
+                    req.jwt[jwtName].login = entry.login ;
                 // eslint-disable-next-line no-unused-vars
                 } catch (err) {
                     // invalid or expired — ignore and continue

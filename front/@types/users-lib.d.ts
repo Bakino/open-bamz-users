@@ -69,6 +69,13 @@ declare class UsersClient {
     resendActivationMessage(login: string): Promise<void>;
 
     /**
+     * Resent the change email message
+     * 
+     * @param login - The login of the user
+     */
+    resendChangeEmail(login: string): Promise<void>;
+
+    /**
      * Resent the reset password message
      * 
      * @param email - The email of the user
@@ -155,15 +162,47 @@ declare class UsersClient {
 
 
     /**
+     * Request an email change with a confirmation link or code send to this email
+     * 
+     * The change will be applied once the user validate by link or code
+     * 
+     * @param email - The email of the user.
+     * @returns True if the request succeed
+     */
+    requestChangeEmail(email: string): Promise<boolean>;
+
+    /**
+     * Apply email change to the user by token 
+     * 
+     * The token has been send to the new email using requestChangeEmail
+     * 
+     * @param token - The reset token (sent to user using requestChangeEmail)
+     * @returns true if the email is changed, false otherwise
+     */
+    changeEmail(token: string): Promise<boolean>;
+
+    /**
+     * Apply email change to the user by code 
+     * 
+     * The code has been send to the new email using requestChangeEmail
+     * 
+     * @param login - The login of the user
+     * @param token - The validation code (sent to user using requestChangeEmail)
+     * @returns true if the email is changed, false otherwise
+     */
+    changeEmailByCode(login: string, token: string): Promise<boolean>;
+
+
+    /**
      * Request a password reset from the user email.
      * 
      * If you add the settings `allow_reset_password` to true, the user is allowed to request a password reset from its email.
-     * This function will return a reset token that you can use to reset the password.
+     * This function will return true if the token has been sent.
      * 
      * @param email - The email of the user.
-     * @returns A promise that resolves to the reset token.
+     * @returns A promise that resolves to the boolean.
      */
-    requestPasswordReset(email: string): Promise<string>;
+    requestPasswordReset(email: string): Promise<boolean>;
 
     /**
      * Reset the password of a user.
