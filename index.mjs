@@ -220,9 +220,10 @@ LANGUAGE plv8 security definer`);
             }
 
             const user = plv8.execute("SELECT * FROM users.user WHERE login = $1", [NEW.login])[0] ;
+            const reqContext = plv8.execute("SELECT current_setting('req.host', true) AS req_host")[0] ;
 
             plv8.execute("SELECT messages.create_from_template($1, $2)", 
-                [templateCode, {user, token: NEW.token, type: NEW.type}]);
+                [templateCode, {user, token: NEW.token, type: NEW.type, host: reqContext.req_host }]);
             
             NEW.resend = false;
             return NEW;
