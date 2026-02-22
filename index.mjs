@@ -521,10 +521,11 @@ LANGUAGE plv8 security definer`);
 
     //function to read user
     await client.query(`CREATE OR REPLACE FUNCTION users.user_read() RETURNS users.user AS $$
-            const user = plv8.execute(\`SELECT * FROM users.user WHERE login = current_setting('jwt.user_'||current_database()||'.login', true)\`)[0];
+            const user = plv8.execute(\`SELECT *, current_database() as currentDatabase FROM users.user WHERE login = current_setting('jwt.user_'||current_database()||'.login', true)\`)[0];
             if(user){
                 user.password = null;
-                user.role = null;
+                user.role = (user.role||"").replace(user.currentDatabase+"_", "");
+                delete user.currentDatabase;
             }
             return user;
         $$
