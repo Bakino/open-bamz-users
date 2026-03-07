@@ -144,6 +144,7 @@ LANGUAGE plv8 security definer`);
         login text PRIMARY KEY,
         email text UNIQUE,
         name text,
+        metadata JSONB,
         lang text,
         role text REFERENCES users.role(role),
         password text,   
@@ -151,6 +152,7 @@ LANGUAGE plv8 security definer`);
     )`);
 
     await client.query(`ALTER TABLE users.user ADD COLUMN IF NOT EXISTS name text`);
+    await client.query(`ALTER TABLE users.user ADD COLUMN IF NOT EXISTS metadata JSONB`);
     await client.query(`ALTER TABLE users.user ADD COLUMN IF NOT EXISTS lang text`);
 
     await client.query(`CREATE TABLE IF NOT EXISTS users.session (
