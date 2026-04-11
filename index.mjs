@@ -885,7 +885,7 @@ export const initPlugin = async ({ app, loadPluginData, runQuery }) => {
             httpOnly: true,
             secure: true,
             sameSite: 'lax',
-            domain: process.env.COOKIE_DOMAIN || ".test3.bakino.fr",
+            domain: process.env.COOKIE_DOMAIN || req.headers.host,
             maxAge: access_token_ttl_minutes * 60 * 1000
         });
 
@@ -893,7 +893,7 @@ export const initPlugin = async ({ app, loadPluginData, runQuery }) => {
             httpOnly: true,
             secure: true,
             sameSite: 'lax',
-            domain: process.env.COOKIE_DOMAIN || ".test3.bakino.fr",
+            domain: process.env.COOKIE_DOMAIN || req.headers.host,
             maxAge: refresh_token_ttl_minutes * 60 * 1000
         });
 
@@ -1121,10 +1121,10 @@ export const initPlugin = async ({ app, loadPluginData, runQuery }) => {
         if (rt) await revokeSession(req.appName, rt);
 
         res.clearCookie(`jwt-user_${req.appName}-access`, {
-           domain: process.env.COOKIE_DOMAIN || ".test3.bakino.fr"
+           domain: process.env.COOKIE_DOMAIN || req.headers.host
         });
         res.clearCookie(`jwt-user_${req.appName}-refresh`, {
-           domain: process.env.COOKIE_DOMAIN || ".test3.bakino.fr"
+           domain: process.env.COOKIE_DOMAIN || req.headers.host
         });
         if(req.headers["x-cors-auth"]){
             // usage in CORS context (for example a cordova app)
