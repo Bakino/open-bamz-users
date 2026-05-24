@@ -16,7 +16,7 @@
     }
   ],
   "extensions": [
-    { "url": "https://cdn.jsdelivr.net/gh/Bakino/open-bamz-database@988f1aaa8c61b436cdab656e507829556c68b742/front/lib/viewz-dbadmin.mjs" },
+    { "url": "https://cdn.jsdelivr.net/gh/Bakino/open-bamz-database@e73fd21772e2a28cb93058ead6da71a124f9217f/front/lib/viewz-dbadmin.mjs" },
     { "url": "https://cdn.jsdelivr.net/gh/Bakino/open-bamz-bootstrap@latest/front/lib/viewz-bootstrap5.mjs" },
     { "url": "/plugin/open-bamz-users/lib/viewz-users.mjs" }
   ]

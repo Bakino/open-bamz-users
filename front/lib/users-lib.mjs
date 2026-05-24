@@ -440,7 +440,7 @@ export async function getUsersClient(appNameOrGraphqlClient=""){
         }else{
             // load db-lib
             // @ts-ignore
-            let {getGraphqlClient} = await import("https://cdn.jsdelivr.net/gh/Bakino/open-bamz-database@988f1aaa8c61b436cdab656e507829556c68b742/front/lib/db-lib.mjs") ;
+            let {getGraphqlClient} = await import("https://cdn.jsdelivr.net/gh/Bakino/open-bamz-database@e73fd21772e2a28cb93058ead6da71a124f9217f/front/lib/db-lib.mjs") ;
             graphqlClient = await getGraphqlClient(appNameOrGraphqlClient) ;
         }
     }

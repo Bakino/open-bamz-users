@@ -859,6 +859,7 @@ export const initPlugin = async ({ app, loadPluginData, runQuery }) => {
     }
 
     async function genSession(user, req, res){
+        //debugger;
         let access_token_ttl_minutes = 3 * 60 ; // default 3h
         let refresh_token_ttl_minutes = 3 * 24 * 60 // default 3 days
         let resultSettings = await runQuery({database: req.appName}, `SELECT * FROM users.settings`, []) ;
