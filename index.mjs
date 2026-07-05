@@ -448,7 +448,7 @@ LANGUAGE plv8 security definer`);
             }
 
             const result = plv8.execute(\`SELECT * FROM users.user WHERE 
-                email = $1 AND active = true\`, [email]);
+                email = $1 AND active = true AND password IS NOT NULL\`, [email]);
 
             if(result.length === 0){
                 return false;
