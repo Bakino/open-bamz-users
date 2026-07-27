@@ -1,5 +1,5 @@
 {
-  "name": "open-bamz-users",
+  "name": "openbamz-plugin-users",
   "version": "1.0.10",
   "main": "index.mjs",
   "type": "module",
@@ -8,12 +8,17 @@
   "license": "MIT",
   "description": "Open BamZ users plugin",
   "dependencies": {
+    "cookie-parser": "^1.4.7",
     "express": "^5.2.1",
-    "jsonwebtoken": "^9.0.3"
-    ,
-    "google-auth-library": "^8.5.0"
+    "google-auth-library": "^8.5.0",
+    "jsonwebtoken": "^9.0.3",
+    "openbamz-lib": "file:../open-bamz/lib-openbamz"
   },
   "devDependencies": {
-    "@types/node": "^24.10.1"
+    "@types/node": "^24.10.1",
+    "pg": "^8.13.1"
+  },
+  "openbamz": {
+    "depends": []
   }
 }

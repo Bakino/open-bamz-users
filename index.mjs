@@ -1,22 +1,34 @@
 import {readFile} from 'fs/promises';
+import path from 'node:path';
+import {fileURLToPath} from 'node:url';
 import express from 'express';
+import cookieParser from 'cookie-parser';
 import jwt from 'jsonwebtoken';
 import {randomBytes} from 'crypto';
 import {OAuth2Client} from 'google-auth-library';
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const frontDir = path.join(__dirname, "front");
+
 /**
  * Called on each application startup (or when the plugin is enabled)
- * 
+ *
  * Use it to prepare the database and files needed by the plugin
  */
-export const prepareDatabase = async ({options, client, grantSchemaAccess}) => {
-    await client.query(`CREATE EXTENSION  IF NOT EXISTS  pgcrypto`);
+async function prepareDatabase({db, logger, grantSchemaAccess}) {
+    // dbName replaces the legacy multi-tenant options.database: role names and
+    // grants are keyed by the connected database (current_database()).
+    const {rows: dbRows} = await db.query("SELECT current_database() AS db");
+    const dbName = dbRows[0].db;
+
+    await db.query(`CREATE EXTENSION IF NOT EXISTS plv8`);
+    await db.query(`CREATE EXTENSION  IF NOT EXISTS  pgcrypto`);
 
     //console.log(`CREATE SCHEMA IF NOT EXISTS users`);
-    await client.query(`CREATE SCHEMA IF NOT EXISTS users`);
+    await db.query(`CREATE SCHEMA IF NOT EXISTS users`);
     
     // Settings
-    await client.query(`CREATE TABLE IF NOT EXISTS users.settings(
+    await db.query(`CREATE TABLE IF NOT EXISTS users.settings(
         id int PRIMARY KEY,
         public_creation boolean DEFAULT false,      -- if true, user can subscribe freely
         role_on_public_creation varchar DEFAULT 'user',   -- the role to apply to public creation
@@ -36,18 +48,18 @@ export const prepareDatabase = async ({options, client, grantSchemaAccess}) => {
     
 
 
-    await client.query(`INSERT INTO users.settings(id, public_creation, role_on_public_creation, active_on_creation, allow_reset_password)
+    await db.query(`INSERT INTO users.settings(id, public_creation, role_on_public_creation, active_on_creation, allow_reset_password)
         SELECT 1, false, 'user', false, false
         WHERE NOT EXISTS (SELECT * FROM users.settings)`);
 
 
-    await client.query(`CREATE TABLE IF NOT EXISTS users.auth_providers(
+    await db.query(`CREATE TABLE IF NOT EXISTS users.auth_providers(
         code text PRIMARY KEY,
         provider_type text,
         provider_settings JSONB
     )`);
 
-    await client.query(`CREATE OR REPLACE FUNCTION users.public_auth_provider_settings(code text)
+    await db.query(`CREATE OR REPLACE FUNCTION users.public_auth_provider_settings(code text)
 RETURNS JSON AS $$
   
     const result = plv8.execute("SELECT * FROM users.auth_providers WHERE code = $1", [code]);
@@ -64,14 +76,14 @@ $$
 LANGUAGE plv8 security definer`);
 
     // Role table 
-    await client.query(`CREATE TABLE IF NOT EXISTS users.role(
+    await db.query(`CREATE TABLE IF NOT EXISTS users.role(
         role text PRIMARY KEY,
         display_order int DEFAULT 0
     )`);
 
     // Insert default roles
     console.log(`INSERT INTO users.role(role)`);
-    await client.query(`INSERT INTO users.role(role, display_order)
+    await db.query(`INSERT INTO users.role(role, display_order)
         SELECT * FROM (SELECT 'anonymous', 0
         UNION SELECT 'readonly', 1
         UNION SELECT 'user', 2
@@ -79,7 +91,7 @@ LANGUAGE plv8 security definer`);
         WHERE NOT EXISTS (SELECT * FROM users.role)`);
 
     // Create trigger to create role
-    await client.query(`CREATE OR REPLACE FUNCTION users.create_role_trigger()
+    await db.query(`CREATE OR REPLACE FUNCTION users.create_role_trigger()
         RETURNS trigger AS $$
             if(!["anonymous","readonly","user","admin"].includes(NEW.role)){
               //custom role
@@ -117,13 +129,13 @@ LANGUAGE plv8 security definer`);
             return NEW;
         $$ LANGUAGE plv8 security definer`);
 
-    await client.query(`CREATE OR REPLACE TRIGGER users_create_role_before_insert
+    await db.query(`CREATE OR REPLACE TRIGGER users_create_role_before_insert
         BEFORE INSERT ON users.role
         FOR EACH ROW
         EXECUTE FUNCTION users.create_role_trigger()`);
 
     // Create trigger to delete role
-    await client.query(`CREATE OR REPLACE FUNCTION users.delete_role_trigger()
+    await db.query(`CREATE OR REPLACE FUNCTION users.delete_role_trigger()
         RETURNS trigger AS $$
             if(!["anonymous","readonly","user","admin"].includes(OLD.role)){
                 //custom role
@@ -133,14 +145,14 @@ LANGUAGE plv8 security definer`);
             return OLD;
         $$ LANGUAGE plv8 security definer`);
 
-    await client.query(`CREATE OR REPLACE TRIGGER users_delete_role
+    await db.query(`CREATE OR REPLACE TRIGGER users_delete_role
         AFTER DELETE ON users.role
         FOR EACH ROW
         EXECUTE FUNCTION users.delete_role_trigger()`);
 
     // User table
     console.log(`REATE TABLE IF NOT EXISTS users.user`);
-    await client.query(`CREATE TABLE IF NOT EXISTS users.user(
+    await db.query(`CREATE TABLE IF NOT EXISTS users.user(
         login text PRIMARY KEY,
         email text UNIQUE,
         name text,
@@ -151,11 +163,11 @@ LANGUAGE plv8 security definer`);
         active boolean
     )`);
 
-    await client.query(`ALTER TABLE users.user ADD COLUMN IF NOT EXISTS name text`);
-    await client.query(`ALTER TABLE users.user ADD COLUMN IF NOT EXISTS metadata JSONB`);
-    await client.query(`ALTER TABLE users.user ADD COLUMN IF NOT EXISTS lang text`);
+    await db.query(`ALTER TABLE users.user ADD COLUMN IF NOT EXISTS name text`);
+    await db.query(`ALTER TABLE users.user ADD COLUMN IF NOT EXISTS metadata JSONB`);
+    await db.query(`ALTER TABLE users.user ADD COLUMN IF NOT EXISTS lang text`);
 
-    await client.query(`CREATE TABLE IF NOT EXISTS users.session (
+    await db.query(`CREATE TABLE IF NOT EXISTS users.session (
         _id uuid primary key DEFAULT gen_random_uuid(),
         login text REFERENCES users.user(login) ON DELETE CASCADE ON UPDATE CASCADE,
         create_time timestamp without time zone DEFAULT now(),
@@ -164,12 +176,12 @@ LANGUAGE plv8 security definer`);
         expire_time timestamp without time zone
     )`);
 
-    await client.query(`DO $$ BEGIN
+    await db.query(`DO $$ BEGIN
             CREATE TYPE users.token_type AS ENUM ('activation', 'password_reset', 'email_change') ;
         EXCEPTION
             WHEN duplicate_object THEN null;
         END $$;`);
-    await client.query(`CREATE TABLE IF NOT EXISTS users.user_token(
+    await db.query(`CREATE TABLE IF NOT EXISTS users.user_token(
         _id uuid primary key DEFAULT gen_random_uuid(),
         create_time timestamp without time zone DEFAULT now(),
         type users.token_type,
@@ -181,11 +193,11 @@ LANGUAGE plv8 security definer`);
         resend boolean
     )`);
 
-    await client.query(`ALTER TABLE users.user_token ADD COLUMN IF NOT EXISTS resend boolean`) ;
+    await db.query(`ALTER TABLE users.user_token ADD COLUMN IF NOT EXISTS resend boolean`) ;
 
 
      // Create trigger to send token message
-     await client.query(`CREATE OR REPLACE FUNCTION users.token_message_trigger()
+     await db.query(`CREATE OR REPLACE FUNCTION users.token_message_trigger()
         RETURNS trigger AS $$
 
             if(OLD){
@@ -231,16 +243,16 @@ LANGUAGE plv8 security definer`);
             return NEW;
         $$ LANGUAGE plv8 security definer`);
 
-    await client.query(`CREATE OR REPLACE TRIGGER user_token_message_insert
+    await db.query(`CREATE OR REPLACE TRIGGER user_token_message_insert
         BEFORE INSERT OR UPDATE ON users.user_token
         FOR EACH ROW
         EXECUTE FUNCTION users.token_message_trigger()`);
 
 
-    await client.query(`DROP FUNCTION IF EXISTS users.token_resend(login text, type text)`);
-    await client.query(`DROP FUNCTION IF EXISTS users.token_resend(loginoremail text, type text)`);
+    await db.query(`DROP FUNCTION IF EXISTS users.token_resend(login text, type text)`);
+    await db.query(`DROP FUNCTION IF EXISTS users.token_resend(loginoremail text, type text)`);
 
-    await client.query(`CREATE OR REPLACE FUNCTION users.token_resend(login_or_email text, type text)
+    await db.query(`CREATE OR REPLACE FUNCTION users.token_resend(login_or_email text, type text)
 RETURNS JSON AS $$
 
     let login = login_or_email;
@@ -270,7 +282,7 @@ $$
 LANGUAGE plv8 security definer`);
 
 
-    await client.query(`CREATE OR REPLACE FUNCTION users.crypt_password_trigger()
+    await db.query(`CREATE OR REPLACE FUNCTION users.crypt_password_trigger()
         RETURNS trigger AS $$
             //crypt the password
             if(!OLD || OLD.password !== NEW.password){
@@ -281,7 +293,7 @@ LANGUAGE plv8 security definer`);
             return NEW;
         $$ LANGUAGE plv8`);
 
-    await client.query(`CREATE OR REPLACE TRIGGER users_create_user_after_insert
+    await db.query(`CREATE OR REPLACE TRIGGER users_create_user_after_insert
         BEFORE INSERT OR UPDATE ON users.user
         FOR EACH ROW
         EXECUTE FUNCTION users.crypt_password_trigger()`);
@@ -289,7 +301,7 @@ LANGUAGE plv8 security definer`);
         
     
     //console.log(`CREATE OR REPLACE FUNCTION users.user_authenticate(login text, password text)`);
-    await client.query(`CREATE OR REPLACE FUNCTION users.user_authenticate(login text, password text)
+    await db.query(`CREATE OR REPLACE FUNCTION users.user_authenticate(login text, password text)
 RETURNS JSON AS $$
   
     const result = plv8.execute("SELECT *, current_database() as current_database FROM users.user WHERE login = $1 AND password = crypt($2, password) AND active = true", [login, password]);
@@ -305,7 +317,7 @@ LANGUAGE plv8 security definer`);
 
 
 
-    await client.query(`CREATE OR REPLACE FUNCTION users.user_activate(token text) RETURNS boolean AS $$
+    await db.query(`CREATE OR REPLACE FUNCTION users.user_activate(token text) RETURNS boolean AS $$
 
             const settings = plv8.execute("SELECT * FROM users.settings")[0];
             if(!settings.public_creation){ return false; }
@@ -325,7 +337,7 @@ LANGUAGE plv8 security definer`);
         $$
     LANGUAGE plv8 security definer`);
 
-    await client.query(`CREATE OR REPLACE FUNCTION users.user_activate_code(login text, token text) RETURNS boolean AS $$
+    await db.query(`CREATE OR REPLACE FUNCTION users.user_activate_code(login text, token text) RETURNS boolean AS $$
 
             const settings = plv8.execute("SELECT * FROM users.settings")[0];
             if(!settings.public_creation){ return false; }
@@ -345,7 +357,7 @@ LANGUAGE plv8 security definer`);
         $$
     LANGUAGE plv8 security definer`);
 
-    await client.query(`CREATE OR REPLACE FUNCTION users.change_email_request(email text) RETURNS boolean AS $$
+    await db.query(`CREATE OR REPLACE FUNCTION users.change_email_request(email text) RETURNS boolean AS $$
             const settings = plv8.execute("SELECT * FROM users.settings")[0];
 
             const result = plv8.execute(\`SELECT * FROM users.user WHERE 
@@ -376,7 +388,7 @@ LANGUAGE plv8 security definer`);
         $$
     LANGUAGE plv8 security definer`);
 
-    await client.query(`CREATE OR REPLACE FUNCTION users.user_change_email_code(login text, token text) RETURNS boolean AS $$
+    await db.query(`CREATE OR REPLACE FUNCTION users.user_change_email_code(login text, token text) RETURNS boolean AS $$
             const settings = plv8.execute("SELECT * FROM users.settings")[0];
             
             if(settings.activation_token_type !== "code"){ return false; }
@@ -408,7 +420,7 @@ LANGUAGE plv8 security definer`);
         $$
     LANGUAGE plv8 security definer`);
 
-     await client.query(`CREATE OR REPLACE FUNCTION users.user_change_email(token text) RETURNS boolean AS $$
+     await db.query(`CREATE OR REPLACE FUNCTION users.user_change_email(token text) RETURNS boolean AS $$
 
             const settings = plv8.execute("SELECT * FROM users.settings")[0];
             if(settings.activation_token_type === "code"){ return false; }
@@ -439,8 +451,8 @@ LANGUAGE plv8 security definer`);
         $$
     LANGUAGE plv8 security definer`);
 
-    await client.query(`DROP FUNCTION IF EXISTS users.password_reset_request`);
-    await client.query(`CREATE OR REPLACE FUNCTION users.password_reset_request(email text) RETURNS boolean AS $$
+    await db.query(`DROP FUNCTION IF EXISTS users.password_reset_request`);
+    await db.query(`CREATE OR REPLACE FUNCTION users.password_reset_request(email text) RETURNS boolean AS $$
             // check settings
             const settings = plv8.execute("SELECT * FROM users.settings")[0];
             if(!settings.allow_reset_password){
@@ -462,7 +474,7 @@ LANGUAGE plv8 security definer`);
         $$
     LANGUAGE plv8 security definer`);
 
-    await client.query(`CREATE OR REPLACE FUNCTION users.password_reset_apply(token text, new_password text) RETURNS boolean AS $$
+    await db.query(`CREATE OR REPLACE FUNCTION users.password_reset_apply(token text, new_password text) RETURNS boolean AS $$
             const settings = plv8.execute("SELECT * FROM users.settings")[0];
             if(!settings.allow_reset_password){
                 throw new Error("Password reset is not allowed");
@@ -484,7 +496,7 @@ LANGUAGE plv8 security definer`);
 
 
     //function to change password
-    await client.query(`CREATE OR REPLACE FUNCTION users.password_change(old_password text, new_password text) RETURNS boolean AS $$
+    await db.query(`CREATE OR REPLACE FUNCTION users.password_change(old_password text, new_password text) RETURNS boolean AS $$
             const result = plv8.execute(\`SELECT * FROM users.user WHERE 
                 login = current_setting('jwt.user_'||current_database()||'.login', true) AND password = crypt($1, password) AND active = true\`, [old_password]);
 
@@ -498,7 +510,7 @@ LANGUAGE plv8 security definer`);
     LANGUAGE plv8 security definer`);
 
     //function to update data
-    await client.query(`CREATE OR REPLACE FUNCTION users.update_user(user_data JSON) RETURNS JSON AS $$
+    await db.query(`CREATE OR REPLACE FUNCTION users.update_user(user_data JSON) RETURNS JSON AS $$
             const result = plv8.execute(\`SELECT * FROM users.user WHERE 
                 login = current_setting('jwt.user_'||current_database()||'.login', true) AND active = true\`, []);
 
@@ -522,7 +534,7 @@ LANGUAGE plv8 security definer`);
     LANGUAGE plv8 security definer`);
 
     //function to read user
-    await client.query(`CREATE OR REPLACE FUNCTION users.user_read() RETURNS users.user AS $$
+    await db.query(`CREATE OR REPLACE FUNCTION users.user_read() RETURNS users.user AS $$
             const user = plv8.execute(\`SELECT *, current_database() as currentDatabase FROM users.user WHERE login = current_setting('jwt.user_'||current_database()||'.login', true)\`)[0];
             if(user){
                 user.password = null;
@@ -534,7 +546,7 @@ LANGUAGE plv8 security definer`);
     LANGUAGE plv8 security definer`);
 
     //function to create user
-    await client.query(`CREATE OR REPLACE FUNCTION users.user_create(user_data JSON) RETURNS JSON AS $$
+    await db.query(`CREATE OR REPLACE FUNCTION users.user_create(user_data JSON) RETURNS JSON AS $$
             if(!user_data.login || !user_data.email || !user_data.password){
                 throw new Error("login, email and password are required");
             }
@@ -595,7 +607,7 @@ LANGUAGE plv8 security definer`);
     LANGUAGE plv8 security definer`);
 
 
-    await client.query(`CREATE OR REPLACE FUNCTION users.role_table_list_permissions() RETURNS JSON AS $$
+    await db.query(`CREATE OR REPLACE FUNCTION users.role_table_list_permissions() RETURNS JSON AS $$
 
             const currentDatabase = plv8.execute("SELECT current_database() as current_database")[0].current_database;
 
@@ -642,7 +654,7 @@ LANGUAGE plv8 security definer`);
     LANGUAGE plv8`);
 
 
-    await client.query(`CREATE OR REPLACE FUNCTION users.role_table_set_permissions(table_schema TEXT, table_name TEXT, role_name TEXT, permissions TEXT) RETURNS VOID AS $$
+    await db.query(`CREATE OR REPLACE FUNCTION users.role_table_set_permissions(table_schema TEXT, table_name TEXT, role_name TEXT, permissions TEXT) RETURNS VOID AS $$
             let roleName = role_name;
             if(roleName !== "anonymous"){
                 const currentDatabase = plv8.execute("SELECT current_database() as current_database")[0].current_database;
@@ -653,7 +665,7 @@ LANGUAGE plv8 security definer`);
         $$
     LANGUAGE plv8`);
 
-    await client.query(`CREATE OR REPLACE FUNCTION users.role_table_remove_permissions(table_schema TEXT, table_name TEXT, role_name TEXT, permissions TEXT) RETURNS VOID AS $$
+    await db.query(`CREATE OR REPLACE FUNCTION users.role_table_remove_permissions(table_schema TEXT, table_name TEXT, role_name TEXT, permissions TEXT) RETURNS VOID AS $$
             let roleName = role_name;
             if(roleName !== "anonymous"){
                 const currentDatabase = plv8.execute("SELECT current_database() as current_database")[0].current_database;
@@ -665,7 +677,7 @@ LANGUAGE plv8 security definer`);
     LANGUAGE plv8`);
 
 
-    await client.query(`CREATE OR REPLACE FUNCTION users.policies_list() RETURNS JSON AS $$
+    await db.query(`CREATE OR REPLACE FUNCTION users.policies_list() RETURNS JSON AS $$
             const result = plv8.execute(\`SELECT * FROM pg_policies\`);
             if(result.length === 0){
                 return [];
@@ -699,7 +711,7 @@ LANGUAGE plv8 security definer`);
         $$
     LANGUAGE plv8`);
 
-    await client.query(`CREATE OR REPLACE FUNCTION users.policy_add(table_schema TEXT, table_name TEXT, policy_name TEXT, role_name TEXT, condition TEXT) RETURNS VOID AS $$
+    await db.query(`CREATE OR REPLACE FUNCTION users.policy_add(table_schema TEXT, table_name TEXT, policy_name TEXT, role_name TEXT, condition TEXT) RETURNS VOID AS $$
             let roleName = role_name;
             if(roleName !== "anonymous"){
                 const currentDatabase = plv8.execute("SELECT current_database() as current_database")[0].current_database;
@@ -712,16 +724,16 @@ LANGUAGE plv8 security definer`);
         $$
     LANGUAGE plv8`); 
 
-    await client.query(`CREATE OR REPLACE FUNCTION users.policy_enable(table_schema TEXT, table_name TEXT) RETURNS VOID AS $$
+    await db.query(`CREATE OR REPLACE FUNCTION users.policy_enable(table_schema TEXT, table_name TEXT) RETURNS VOID AS $$
             plv8.execute(\`ALTER TABLE \${table_schema}.\${table_name} ENABLE ROW LEVEL SECURITY\`);            
         $$
     LANGUAGE plv8`);
-    await client.query(`CREATE OR REPLACE FUNCTION users.policy_disable(table_schema TEXT, table_name TEXT) RETURNS VOID AS $$
+    await db.query(`CREATE OR REPLACE FUNCTION users.policy_disable(table_schema TEXT, table_name TEXT) RETURNS VOID AS $$
             plv8.execute(\`ALTER TABLE \${table_schema}.\${table_name} DISABLE ROW LEVEL SECURITY\`);            
         $$
     LANGUAGE plv8`);
 
-    await client.query(`CREATE OR REPLACE FUNCTION users.policy_remove(table_schema TEXT, table_name TEXT, policy_name TEXT) RETURNS VOID AS $$
+    await db.query(`CREATE OR REPLACE FUNCTION users.policy_remove(table_schema TEXT, table_name TEXT, policy_name TEXT) RETURNS VOID AS $$
             plv8.execute(\`DROP POLICY \${policy_name} ON \${table_schema}.\${table_name}\`);
         $$
     LANGUAGE plv8`);
@@ -737,68 +749,72 @@ LANGUAGE plv8 security definer`);
     //console.log(`GRANT USAGE ON SCHEMA users TO anonymous`);
     //console.log(`GRANT EXECUTE ON FUNCTION users.user_authenticate TO anonymous`);
     
-    const customRoles = await client.query(`SELECT "role" FROM users.role WHERE "role" NOT IN ('anonymous','readonly','user','admin')`) ;
+    const customRoles = await db.query(`SELECT "role" FROM users.role WHERE "role" NOT IN ('anonymous','readonly','user','admin')`) ;
 
-    for(let role of ["anonymous",`${options.database}_readonly`,
-            `${options.database}_user`,`${options.database}_admin`].concat(customRoles.rows.map(r=>`${options.database}_${r.role}`))){
+    for(let role of ["anonymous",`${dbName}_readonly`,
+            `${dbName}_user`,`${dbName}_admin`].concat(customRoles.rows.map(r=>`${dbName}_${r.role}`))){
         //give access to public functions to all roles (standard and custome)
         console.log(`GRANT USAGE ON SCHEMA users TO ${role}`);
-        await client.query(`GRANT USAGE ON SCHEMA users TO ${role}`);
-        await client.query(`GRANT EXECUTE ON FUNCTION users.user_authenticate TO ${role}`);
-        await client.query(`GRANT EXECUTE ON FUNCTION users.token_resend TO ${role}`);
-        await client.query(`GRANT EXECUTE ON FUNCTION users.user_activate_code TO ${role}`);
-        await client.query(`GRANT EXECUTE ON FUNCTION users.change_email_request TO ${role}`);
-        await client.query(`GRANT EXECUTE ON FUNCTION users.user_change_email_code TO ${role}`);
-        await client.query(`GRANT EXECUTE ON FUNCTION users.user_change_email TO ${role}`);
-        await client.query(`GRANT EXECUTE ON FUNCTION users.password_reset_request TO ${role}`);
-        await client.query(`GRANT EXECUTE ON FUNCTION users.password_reset_apply TO ${role}`);
-        await client.query(`GRANT EXECUTE ON FUNCTION users.user_activate TO ${role}`);
-        await client.query(`GRANT EXECUTE ON FUNCTION users.password_change TO ${role}`);
-        await client.query(`GRANT EXECUTE ON FUNCTION users.user_read() TO ${role}`);
-        await client.query(`GRANT EXECUTE ON FUNCTION users.user_create TO ${role}`);
-        await client.query(`GRANT EXECUTE ON FUNCTION users.update_user TO ${role}`);
-        await client.query(`GRANT EXECUTE ON FUNCTION users.public_auth_provider_settings TO ${role}`);
+        await db.query(`GRANT USAGE ON SCHEMA users TO ${role}`);
+        await db.query(`GRANT EXECUTE ON FUNCTION users.user_authenticate TO ${role}`);
+        await db.query(`GRANT EXECUTE ON FUNCTION users.token_resend TO ${role}`);
+        await db.query(`GRANT EXECUTE ON FUNCTION users.user_activate_code TO ${role}`);
+        await db.query(`GRANT EXECUTE ON FUNCTION users.change_email_request TO ${role}`);
+        await db.query(`GRANT EXECUTE ON FUNCTION users.user_change_email_code TO ${role}`);
+        await db.query(`GRANT EXECUTE ON FUNCTION users.user_change_email TO ${role}`);
+        await db.query(`GRANT EXECUTE ON FUNCTION users.password_reset_request TO ${role}`);
+        await db.query(`GRANT EXECUTE ON FUNCTION users.password_reset_apply TO ${role}`);
+        await db.query(`GRANT EXECUTE ON FUNCTION users.user_activate TO ${role}`);
+        await db.query(`GRANT EXECUTE ON FUNCTION users.password_change TO ${role}`);
+        await db.query(`GRANT EXECUTE ON FUNCTION users.user_read() TO ${role}`);
+        await db.query(`GRANT EXECUTE ON FUNCTION users.user_create TO ${role}`);
+        await db.query(`GRANT EXECUTE ON FUNCTION users.update_user TO ${role}`);
+        await db.query(`GRANT EXECUTE ON FUNCTION users.public_auth_provider_settings TO ${role}`);
     }
 
     // for custom role, add access to same base right as anonymous
-    for(let role of customRoles.rows.map(r=>`${options.database}_${r.role}`)){
-        await client.query(`GRANT USAGE ON SCHEMA openbamz TO ${role}`);
-        await client.query(`GRANT EXECUTE ON FUNCTION openbamz.list_schema_and_tables TO ${role}`);
+    for(let role of customRoles.rows.map(r=>`${dbName}_${r.role}`)){
+        await db.query(`GRANT USAGE ON SCHEMA openbamz TO ${role}`);
+        await db.query(`GRANT EXECUTE ON FUNCTION openbamz.list_schema_and_tables TO ${role}`);
     }
 
-    for(let role of [`${options.database}_admin`]){
-        await client.query(`GRANT EXECUTE ON FUNCTION users.role_table_list_permissions TO ${role}`);
-        await client.query(`GRANT EXECUTE ON FUNCTION users.role_table_set_permissions TO ${role}`);
-        await client.query(`GRANT EXECUTE ON FUNCTION users.role_table_remove_permissions TO ${role}`);
+    for(let role of [`${dbName}_admin`]){
+        await db.query(`GRANT EXECUTE ON FUNCTION users.role_table_list_permissions TO ${role}`);
+        await db.query(`GRANT EXECUTE ON FUNCTION users.role_table_set_permissions TO ${role}`);
+        await db.query(`GRANT EXECUTE ON FUNCTION users.role_table_remove_permissions TO ${role}`);
     }
 
 
     //console.log(`GRANT EXECUTE ON FUNCTION users.user_refresh TO anonymous`);
-    //await client.query(`REVOKE EXECUTE ON FUNCTION users.user_create FROM public`);
+    //await db.query(`REVOKE EXECUTE ON FUNCTION users.user_create FROM public`);
 
 
 
-    /*await client.query(`GRANT SELECT ON ALL TABLES IN SCHEMA publicusers TO anonymous`);
+    /*await db.query(`GRANT SELECT ON ALL TABLES IN SCHEMA publicusers TO anonymous`);
 
-    await client.query(`ALTER DEFAULT PRIVILEGES IN SCHEMA publicusers GRANT SELECT ON TABLES TO anonymous`);
-    await client.query(`ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA publicusers GRANT SELECT ON TABLES TO anonymous`);*/
-}
-
-/**
- * Called when the plugin is disabled
- * 
- * Use it to eventually clean the database and files created by the plugin
- */
-export const cleanDatabase = async ({client}) => {
-    await client.query(`DROP SCHEMA IF EXISTS users CASCADE`);
+    await db.query(`ALTER DEFAULT PRIVILEGES IN SCHEMA publicusers GRANT SELECT ON TABLES TO anonymous`);
+    await db.query(`ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA publicusers GRANT SELECT ON TABLES TO anonymous`);*/
 }
 
 
 /**
- * Init plugin when Open BamZ platform start
+ * Init plugin when Open BamZ platform starts (library mode).
+ *
+ * Auth is JWT-cookie based. The returned `authMiddleware` runs BEFORE the GraphQL
+ * endpoint: it parses cookies, verifies the access token, checks the session, and
+ * sets `req.pgSettings` = { role: "<db>_<role>", "jwt.user_<db>.login": <login>,
+ * "req.host": <host> }. The core merges req.pgSettings into the GraphQL request's
+ * Postgres session, so the query runs under the user's role and the plv8 functions
+ * can read the login via current_setting('jwt.user_<db>.login').
+ *
+ * Mono-app: the legacy per-request `req.appName` is replaced by the connected
+ * database name (current_database()); `runQuery({database},…)` becomes `db.query`.
  */
-export const initPlugin = async ({ app, loadPluginData, runQuery }) => {
+async function init({ db, logger }) {
     const router = express.Router();
+
+    const {rows: dbRows} = await db.query("SELECT current_database() AS db");
+    const dbName = dbRows[0].db;
 
     const PRIVATE_KEY = await readFile(process.env.JWT_PRIVATE_KEY_FILE);
     const PUBLIC_KEY  = await readFile(process.env.JWT_PUBLIC_KEY_FILE);
@@ -825,33 +841,33 @@ export const initPlugin = async ({ app, loadPluginData, runQuery }) => {
         });
     }
 
-    async function saveSession(appName, userId, token, expiresAt) {
-        await runQuery({database: appName}, `INSERT INTO users.session (login, token, expire_time, revoked) VALUES ($1, $2, $3, false)
+    async function saveSession(userId, token, expiresAt) {
+        await db.query(`INSERT INTO users.session (login, token, expire_time, revoked) VALUES ($1, $2, $3, false)
             ON CONFLICT (token) DO UPDATE SET expire_time = $3, revoked = false`, [userId, token, expiresAt])
     }
 
-    async function revokeSession(appName, token) {
-        await runQuery({database: appName},`UPDATE users.session SET revoked = true WHERE token = $1`, [token]);
+    async function revokeSession(token) {
+        await db.query(`UPDATE users.session SET revoked = true WHERE token = $1`, [token]);
     }
-    async function expireSession(appName, token, delay) {
-        await runQuery({database: appName},`UPDATE users.session SET expire_time = NOW() + INTERVAL '${delay} minutes' WHERE token = $1`, [token]);
+    async function expireSession(token, delay) {
+        await db.query(`UPDATE users.session SET expire_time = NOW() + INTERVAL '${delay} minutes' WHERE token = $1`, [token]);
     }
 
-    async function findSession(appName, token) {
-        const result = await runQuery({database: appName}, `SELECT login, token, expire_time, revoked FROM users.session WHERE token = $1`, [token]);
+    async function findSession(token) {
+        const result = await db.query(`SELECT login, token, expire_time, revoked FROM users.session WHERE token = $1`, [token]);
         if (result.rows.length === 0) return null;
         return result.rows[0];
     }
 
-    async function authenticateUser(appName, login, password) {
-        let result = await runQuery({database: appName}, `SELECT users.user_authenticate($1, $2) as account`, [login, password]) ;
+    async function authenticateUser(login, password) {
+        let result = await db.query(`SELECT users.user_authenticate($1, $2) as account`, [login, password]) ;
         if(result.rows.length>0){
             return result.rows[0].account ;
         }
         return null;
     }
-    async function readUser(appName, login) {
-        let result = await runQuery({database: appName}, `SELECT * FROM users.user WHERE login = $1 and active = true`, [login]) ;
+    async function readUser(login) {
+        let result = await db.query(`SELECT * FROM users.user WHERE login = $1 and active = true`, [login]) ;
         if(result.rows.length>0){
             return result.rows[0] ;
         }
@@ -859,10 +875,9 @@ export const initPlugin = async ({ app, loadPluginData, runQuery }) => {
     }
 
     async function genSession(user, req, res){
-        //debugger;
         let access_token_ttl_minutes = 3 * 60 ; // default 3h
         let refresh_token_ttl_minutes = 3 * 24 * 60 // default 3 days
-        let resultSettings = await runQuery({database: req.appName}, `SELECT * FROM users.settings`, []) ;
+        let resultSettings = await db.query(`SELECT * FROM users.settings`, []) ;
         if(resultSettings.rows.length>0){
             if(resultSettings.rows[0].access_token_ttl_minutes){
                 access_token_ttl_minutes = resultSettings.rows[0].access_token_ttl_minutes ;
@@ -873,16 +888,16 @@ export const initPlugin = async ({ app, loadPluginData, runQuery }) => {
         }
 
         delete user.password ;
-        user.role = req.appName + "_" + user.role ;
+        user.role = dbName + "_" + user.role ;
         const accessToken = signAccessToken(user , access_token_ttl_minutes);
 
         // create refresh token
         const refreshToken = generateToken();
         const expiresAt = new Date(Date.now() + access_token_ttl_minutes * 60 * 1000);
-        await saveSession(req.appName, user.login, refreshToken, expiresAt);
+        await saveSession(user.login, refreshToken, expiresAt);
 
         // set cookies
-        res.cookie(`jwt-user_${req.appName}-access`, accessToken, {
+        res.cookie(`jwt-user_${dbName}-access`, accessToken, {
             httpOnly: true,
             secure: true,
             sameSite: 'lax',
@@ -890,7 +905,7 @@ export const initPlugin = async ({ app, loadPluginData, runQuery }) => {
             maxAge: access_token_ttl_minutes * 60 * 1000
         });
 
-        res.cookie(`jwt-user_${req.appName}-refresh`, refreshToken, {
+        res.cookie(`jwt-user_${dbName}-refresh`, refreshToken, {
             httpOnly: true,
             secure: true,
             sameSite: 'lax',
@@ -901,76 +916,80 @@ export const initPlugin = async ({ app, loadPluginData, runQuery }) => {
         if(req.headers["x-cors-auth"]){
             // usage in CORS context (for example a cordova app)
             // in this case, return the cookie in header as cookie is not supported
-            res.setHeader(`x-cors-jwt-user_${req.appName}-access`, accessToken) ;
-            res.setHeader(`x-cors-jwt-user_${req.appName}-refresh`, refreshToken) ;
+            res.setHeader(`x-cors-jwt-user_${dbName}-access`, accessToken) ;
+            res.setHeader(`x-cors-jwt-user_${dbName}-refresh`, refreshToken) ;
         }
     }
 
     /**
-     * Authentication middleware:
-     * 1. Read access token from HttpOnly cookie
-     * 2. Verify JWT
-     * 3. Inject Authorization header for PostGraphile v5
+     * Authentication middleware (returned as `authMiddleware`, applied BEFORE the
+     * GraphQL endpoint by the core):
+     * 1. Read access token from HttpOnly cookie (or x-cors-* header in CORS mode)
+     * 2. Verify JWT + session
+     * 3. Expose the identity to Postgres via req.pgSettings (role + login GUC)
      */
-
     const jwtMiddleware = async (req, res, next) => {
-        if(req.appName){
-            const jwtName = `user_${req.appName}` ;
-            const cookiePrefix = `jwt-${jwtName}-` ;
+        // Always expose the request host GUC — read by users.token_message_trigger
+        // (current_setting('req.host')) during token-generating GraphQL mutations.
+        req.pgSettings = { 'req.host': req.headers.host };
 
-            let cookieAccess = null;
-            let cookieRefresh = null;
-            if(req.cookies){
-                cookieAccess = req.cookies[`${cookiePrefix}access`];
-                cookieRefresh = req.cookies[`${cookiePrefix}refresh`];
-            }
-            if(!cookieAccess){
-                // usage in CORS context (for example a cordova app)
-                // in this case, return the cookie in header as cookie is not supported
-                cookieAccess = req.headers[`x-cors-${cookiePrefix}access`];
-                cookieRefresh = req.headers[`x-cors-${cookiePrefix}refresh`];
-            }
-            if(cookieAccess && cookieRefresh){
-                try {
-                    const decoded = verifyAccessToken(cookieAccess);
+        const jwtName = `user_${dbName}` ;
+        const cookiePrefix = `jwt-${jwtName}-` ;
 
-                    const entry = await findSession(req.appName, cookieRefresh);
-                    if (!entry || entry.revoked || entry.expire_time < new Date()) {
-                        return next() ;
-                    }
+        let cookieAccess = null;
+        let cookieRefresh = null;
+        if(req.cookies){
+            cookieAccess = req.cookies[`${cookiePrefix}access`];
+            cookieRefresh = req.cookies[`${cookiePrefix}refresh`];
+        }
+        if(!cookieAccess){
+            // usage in CORS context (for example a cordova app)
+            // in this case, the cookie is passed in header as cookie is not supported
+            cookieAccess = req.headers[`x-cors-${cookiePrefix}access`];
+            cookieRefresh = req.headers[`x-cors-${cookiePrefix}refresh`];
+        }
+        if(cookieAccess && cookieRefresh){
+            try {
+                const decoded = verifyAccessToken(cookieAccess);
 
-                    if(!req.jwt) req.jwt = {};
-                    req.jwt[jwtName] = decoded;
-                    // set login from session because, it can as been modified while the session is still valid
-                    req.jwt[jwtName].login = entry.login ;
-                // eslint-disable-next-line no-unused-vars
-                } catch (err) {
-                    // invalid or expired — ignore and continue
+                const entry = await findSession(cookieRefresh);
+                if (!entry || entry.revoked || entry.expire_time < new Date()) {
+                    return next() ;
                 }
+
+                if(!req.jwt) req.jwt = {};
+                req.jwt[jwtName] = decoded;
+                // set login from session because it can have been modified while the session is still valid
+                req.jwt[jwtName].login = entry.login ;
+
+                // hand the resolved identity to the core GraphQL layer: run the
+                // request under the user's Postgres role and expose the login GUC.
+                req.pgSettings.role = decoded.role ;
+                req.pgSettings[`jwt.${jwtName}.login`] = entry.login ;
+            // eslint-disable-next-line no-unused-vars
+            } catch (err) {
+                // invalid or expired — ignore and continue as anonymous
             }
         }
         next();
     };
-    
-
-    app.use(jwtMiddleware) ;
 
 
     router.post('/login', express.json(), async (req, res) => {
         const { login, password } = req.body;
 
-        if(!login){ 
+        if(!login){
             return res.status(400).json({ error: 'Login is required' });
         }
         if(password == null){
             return res.status(400).json({ error: 'Password is required' });
         }
 
-        const user = await authenticateUser(req.appName, login, password);
+        const user = await authenticateUser(login, password);
         if (!user) return res.status(401).json({ error: 'Invalid credentials' });
 
         await genSession(user, req, res)
-        
+
 
         res.json({ ok: true });
     });
@@ -983,9 +1002,9 @@ export const initPlugin = async ({ app, loadPluginData, runQuery }) => {
         return googleClients[clientId];
     }
 
-    router.post('/auth/provider', async (req, res) => {
+    router.post('/auth/provider', express.json(), async (req, res) => {
         const { provider } = req.body;
-        let result = await runQuery({database: req.appName}, `SELECT * FROM users.auth_providers WHERE code = $1`, [provider]);
+        let result = await db.query(`SELECT * FROM users.auth_providers WHERE code = $1`, [provider]);
         if(result.rows.length === 0){
             return res.status(400).json({ error: 'unknown_provider' });
         }
@@ -1003,13 +1022,12 @@ export const initPlugin = async ({ app, loadPluginData, runQuery }) => {
                     const sub = payload.sub;
                     login = `google_${sub}`;
                 }catch(err){
-                    console.error('Google auth error', err);
+                    logger?.error?.('Google auth error %o', err);
                     return res.status(401).json({ error: 'invalid_token' });
                 }
             }else{
                 try{
                     const tokenInfo = await getGoogleClient(providerData.provider_settings.client_id).getTokenInfo(access_token);
-                    console.log("tokenInfo", tokenInfo) ;
                     if (tokenInfo.aud !== providerData.provider_settings.client_id) {
                         throw new Error('Token was not issued for this application');
                     }
@@ -1018,7 +1036,7 @@ export const initPlugin = async ({ app, loadPluginData, runQuery }) => {
                     const sub = payload.sub;
                     login = `google_${sub}`;
                 }catch(err){
-                    console.error('Google auth error', err);
+                    logger?.error?.('Google auth error %o', err);
                     return res.status(401).json({ error: 'invalid_token' });
                 }
             }
@@ -1031,10 +1049,10 @@ export const initPlugin = async ({ app, loadPluginData, runQuery }) => {
         }
 
         // try to find existing user by login or email
-        result = await runQuery({database: req.appName}, `SELECT * FROM users.user WHERE login = $1 OR email = $2`, [login, email]);
+        result = await db.query(`SELECT * FROM users.user WHERE login = $1 OR email = $2`, [login, email]);
         if(result.rows.length === 0){
             // create user (activate immediately for social login)
-            const settingsRes = await runQuery({database: req.appName}, `SELECT * FROM users.settings`, []);
+            const settingsRes = await db.query(`SELECT * FROM users.settings`, []);
             if(!settingsRes.rows[0]?.public_creation){
                 return res.status(401).json({ error: 'Invalid credentials' });
             }
@@ -1042,8 +1060,8 @@ export const initPlugin = async ({ app, loadPluginData, runQuery }) => {
             if(settingsRes.rows.length>0 && settingsRes.rows[0].role_on_public_creation){
                 role = settingsRes.rows[0].role_on_public_creation;
             }
-            await runQuery({database: req.appName}, `INSERT INTO users.user(login, email, role, active) VALUES($1, $2, $3, true)`, [login, email, role]);
-            result = await runQuery({database: req.appName}, `SELECT * FROM users.user WHERE login = $1`, [login]);
+            await db.query(`INSERT INTO users.user(login, email, role, active) VALUES($1, $2, $3, true)`, [login, email, role]);
+            result = await db.query(`SELECT * FROM users.user WHERE login = $1`, [login]);
         }
 
         const user = result.rows[0];
@@ -1055,22 +1073,22 @@ export const initPlugin = async ({ app, loadPluginData, runQuery }) => {
 
 
     router.post('/refresh', async (req, res) => {
-        let oldToken = req.cookies?.[`jwt-user_${req.appName}-refresh`];
+        let oldToken = req.cookies?.[`jwt-user_${dbName}-refresh`];
         if(!oldToken){
             // usage in CORS context (for example a cordova app)
-            // in this case, return the cookie in header as cookie is not supported
-            oldToken = req.headers[`x-cors-jwt-user_${req.appName}-refresh`];
+            // in this case, the cookie is passed in header as cookie is not supported
+            oldToken = req.headers[`x-cors-jwt-user_${dbName}-refresh`];
         }
         if (!oldToken) return res.status(401).end();
 
-        const entry = await findSession(req.appName, oldToken);
+        const entry = await findSession(oldToken);
         if (!entry || entry.revoked || entry.expire_time < new Date()) {
             return res.status(401).end();
         }
         // expire old session in 2 minute (let the time of other request running in the same time to finish)
-        await expireSession(req.appName, oldToken, 2); 
+        await expireSession(oldToken, 2);
 
-        const user = await readUser(req.appName, entry.login);
+        const user = await readUser(entry.login);
         if(!user){
             return res.status(401).end();
         }
@@ -1078,18 +1096,17 @@ export const initPlugin = async ({ app, loadPluginData, runQuery }) => {
 
         res.json({ ok: true });
     });
-    
+
     router.post('/refresh-if-needed', async (req, res) => {
-        debugger ;
-        let oldToken = req.cookies?.[`jwt-user_${req.appName}-refresh`];
+        let oldToken = req.cookies?.[`jwt-user_${dbName}-refresh`];
         if(!oldToken){
             // usage in CORS context (for example a cordova app)
-            // in this case, return the cookie in header as cookie is not supported
-            oldToken = req.headers[`x-cors-jwt-user_${req.appName}-refresh`];
+            // in this case, the cookie is passed in header as cookie is not supported
+            oldToken = req.headers[`x-cors-jwt-user_${dbName}-refresh`];
         }
         if (!oldToken) return res.status(401).end();
 
-        const entry = await findSession(req.appName, oldToken);
+        const entry = await findSession(oldToken);
         if (!entry || entry.revoked || entry.expire_time < new Date()) {
             return res.status(401).end();
         }
@@ -1100,9 +1117,9 @@ export const initPlugin = async ({ app, loadPluginData, runQuery }) => {
         }
 
         // expire old session in 2 minute (let the time of other request running in the same time to finish)
-        await expireSession(req.appName, oldToken, 2); 
+        await expireSession(oldToken, 2);
 
-        const user = await readUser(req.appName, entry.login);
+        const user = await readUser(entry.login);
         if(!user){
             return res.status(401).end();
         }
@@ -1113,54 +1130,49 @@ export const initPlugin = async ({ app, loadPluginData, runQuery }) => {
 
 
     router.post('/logout', async (req, res) => {
-        let rt = req.cookies?.[`jwt-user_${req.appName}-refresh`];
+        let rt = req.cookies?.[`jwt-user_${dbName}-refresh`];
         if(!rt){
             // usage in CORS context (for example a cordova app)
-            // in this case, return the cookie in header as cookie is not supported
-            rt = req.headers[`x-cors-jwt-user_${req.appName}-refresh`];
+            // in this case, the cookie is passed in header as cookie is not supported
+            rt = req.headers[`x-cors-jwt-user_${dbName}-refresh`];
         }
-        if (rt) await revokeSession(req.appName, rt);
+        if (rt) await revokeSession(rt);
 
-        res.clearCookie(`jwt-user_${req.appName}-access`, {
+        res.clearCookie(`jwt-user_${dbName}-access`, {
            domain: process.env.COOKIE_DOMAIN || req.headers.host
         });
-        res.clearCookie(`jwt-user_${req.appName}-refresh`, {
+        res.clearCookie(`jwt-user_${dbName}-refresh`, {
            domain: process.env.COOKIE_DOMAIN || req.headers.host
         });
         if(req.headers["x-cors-auth"]){
             // usage in CORS context (for example a cordova app)
-            // in this case, return the cookie in header as cookie is not supported
-            res.setHeader(`x-cors-jwt-user_${req.appName}-access`, "x") ;
-            res.setHeader(`x-cors-jwt-user_${req.appName}-refresh`, "x") ;
+            // in this case, the cookie is passed in header as cookie is not supported
+            res.setHeader(`x-cors-jwt-user_${dbName}-access`, "x") ;
+            res.setHeader(`x-cors-jwt-user_${dbName}-refresh`, "x") ;
         }
         res.json({ ok: true });
     });
 
 
-    loadPluginData(async ({pluginsData})=>{
-        if(pluginsData?.["open-bamz-viewz"]?.pluginSlots?.viewzExtensions){
-            pluginsData?.["open-bamz-viewz"]?.pluginSlots?.viewzExtensions.push( {
-                plugin: "users",
-                extensionPath: "/plugin/open-bamz-users/lib/viewz-users.mjs",
-                "d.ts": `declare const usersApi: UsersClient;`
-            })
-        }
-        if(pluginsData?.["code-editor"]?.pluginSlots?.javascriptApiDef){
-            pluginsData?.["code-editor"]?.pluginSlots?.javascriptApiDef.push( {
-                plugin: "users",
-                url: "/plugin/open-bamz-users/lib/users-lib.d.ts"
-            })
-        }
-    })
-
     return {
-        // path in which the plugin provide its front end files
-        frontEndPath: "front",
-        //lib that will be automatically load in frontend
-        frontEndPublic: "lib",
-        frontEndLib: "lib/users-lib.mjs",
+        // Expose the users schema to GraphQL so the users_* mutations
+        // (user_read/user_create/update_user/password_change/…) are generated.
+        graphqlSchemas: "users",
         router: router,
-        cors: ["x-cors-jwt-user_:appName-access", "x-cors-jwt-user_:appName-refresh"],
+        // Auth middleware chain applied BEFORE the GraphQL endpoint by the core:
+        // cookie parsing + JWT verification -> req.pgSettings.
+        authMiddleware: [cookieParser(), jwtMiddleware],
+        frontEndLib: "lib/users-lib.mjs",
+        frontEndPublic: [
+            { mountPath: "/plugin/open-bamz-users", dir: frontDir },
+            { mountPath: "/open-bamz-users", dir: frontDir },
+        ],
+        // Expose the x-cors-* auth headers to cross-origin (Cordova) clients, and
+        // allow them on requests. exposeHeaders replaces the legacy `cors` array.
+        cors: {
+            exposeHeaders: [`x-cors-jwt-user_${dbName}-access`, `x-cors-jwt-user_${dbName}-refresh`],
+            headers: `Content-Type,Authorization,x-cors-auth,x-cors-jwt-user_${dbName}-access,x-cors-jwt-user_${dbName}-refresh`,
+        },
         //menu entries
         menu: [
             {
@@ -1171,3 +1183,32 @@ export const initPlugin = async ({ app, loadPluginData, runQuery }) => {
         ]
     }
 }
+
+
+/**
+ * Called after all init(): pushes into OTHER plugins' slots (by reference).
+ * Slot keys normalized to the target plugins' historical `name`.
+ */
+async function contribute({ slots }) {
+    if(slots["open-bamz-viewz"]?.viewzExtensions){
+        slots["open-bamz-viewz"].viewzExtensions.push( {
+            plugin: "users",
+            extensionPath: "/plugin/open-bamz-users/lib/viewz-users.mjs",
+            "d.ts": `declare const usersApi: UsersClient;`
+        })
+    }
+    if(slots["open-bamz-code-editor"]?.javascriptApiDef){
+        slots["open-bamz-code-editor"].javascriptApiDef.push( {
+            plugin: "users",
+            url: "/plugin/open-bamz-users/lib/users-lib.d.ts"
+        })
+    }
+}
+
+export default {
+    name: "open-bamz-users",
+    depends: [],
+    prepareDatabase,
+    init,
+    contribute,
+};
