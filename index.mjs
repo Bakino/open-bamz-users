@@ -485,14 +485,17 @@ LANGUAGE plv8 security definer`);
 
     //function to change password
     await client.query(`CREATE OR REPLACE FUNCTION users.password_change(old_password text, new_password text) RETURNS boolean AS $$
+
+            const resultLogin = plv8.execute(\`SELECT current_setting('jwt.user_'||current_database()||'.login', true) as login\`, []);
+            
             const result = plv8.execute(\`SELECT * FROM users.user WHERE 
-                login = current_setting('jwt.user_'||current_database()||'.login', true) AND password = crypt($1, password) AND active = true\`, [old_password]);
+                login = $1 AND password = crypt($2, password) AND active = true\`, [resultLogin[0].login, old_password]);
 
             if(result.length === 0){
                 return false;
             }
 
-            plv8.execute(\`UPDATE users.user SET password = $1 WHERE login = current_setting('jwt.user_'||current_database()||'.login', true)\`, [new_password]);
+            plv8.execute(\`UPDATE users.user SET password = $1 WHERE login = $2\`, [new_password, resultLogin[0].login]);
             return true;
         $$
     LANGUAGE plv8 security definer`);
